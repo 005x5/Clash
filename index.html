@@ -1,91 +1,155 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-<title>Beaming.exe</title>
+<meta charset="UTF-8">
+<title>Arena Clash</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <style>
-    body {
-        font-family: Arial, sans-serif;
-        background: #2b2d31; /* dark mode */
-        color: #ffffff;
-        padding: 20px;
-    }
-    #box {
-        max-width: 450px;
-        margin: 40px auto;
-        padding: 20px;
-        border-radius: 10px;
-        background: #1e1f22; /* Discord dark */
-        box-shadow: 0 0 10px #0005;
-    }
-    h2 {
-        text-align: center;
-        color: #ffffff;
-        margin-bottom: 20px;
-    }
-    .label {
-        margin-bottom: 5px;
-        font-size: 14px;
-        color: #b5b7bb;
-    }
-    input {
-        width: 100%;
-        height: 35px;
-        padding: 8px;
-        font-size: 14px;
-        margin-bottom: 15px;
-        border: none;
-        border-radius: 5px;
-        background: #313338;
-        color: #ffffff;
-        outline: none;
-    }
-    textarea {
-        width: 100%;
-        height: 80px;
-        padding: 10px;
-        font-size: 14px;
-        margin-bottom: 15px;
-        resize: none;
-        border: none;
-        border-radius: 5px;
-        background: #313338;
-        color: #ffffff;
-        outline: none;
-    }
-    button {
-        width: 100%;
-        padding: 12px;
-        font-size: 16px;
-        cursor: pointer;
-        background: #5865F2;
-        color: white;
-        border: none;
-        border-radius: 5px;
-        font-weight: bold;
-    }
-    button:hover {
-        background: #4752c4;
-    }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: #1b1330;
+    font-family: 'Trebuchet MS', Arial, sans-serif;
+    color: #fff;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    min-height: 100vh;
+    padding: 10px;
+  }
+  h1 {
+    margin: 8px 0;
+    letter-spacing: 2px;
+    text-shadow: 0 2px 4px #000;
+  }
+  #gameWrap {
+    position: relative;
+  }
+  canvas {
+    background: #3a6b2e;
+    border: 6px solid #4b3a6b;
+    border-radius: 10px;
+    display: block;
+  }
+  #overlay {
+    position: absolute;
+    top: 0; left: 0; right: 0; bottom: 0;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    background: rgba(0,0,0,0.7);
+    border-radius: 10px;
+    flex-direction: column;
+    font-size: 28px;
+  }
+  #overlay button {
+    margin-top: 16px;
+    padding: 10px 22px;
+    font-size: 16px;
+    border: none;
+    border-radius: 8px;
+    background: #f2a900;
+    color: #2a1a00;
+    font-weight: bold;
+    cursor: pointer;
+  }
+  #hud {
+    width: 400px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-top: 10px;
+  }
+  #elixirBarWrap {
+    flex: 1;
+    height: 22px;
+    background: #2a1a45;
+    border-radius: 11px;
+    overflow: hidden;
+    border: 2px solid #6a4bbf;
+    margin-right: 10px;
+  }
+  #elixirBar {
+    height: 100%;
+    width: 50%;
+    background: linear-gradient(90deg, #b93ce0, #7a1fd6);
+    transition: width 0.2s linear;
+  }
+  #elixirLabel {
+    font-size: 14px;
+    min-width: 60px;
+    text-align: right;
+  }
+  #hand {
+    display: flex;
+    gap: 8px;
+    margin-top: 10px;
+  }
+  .card {
+    width: 78px;
+    height: 100px;
+    background: #2b2050;
+    border: 3px solid #6a4bbf;
+    border-radius: 10px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: space-between;
+    padding: 6px 4px;
+    cursor: pointer;
+    user-select: none;
+    transition: transform 0.1s, border-color 0.1s;
+    text-align: center;
+  }
+  .card:hover { transform: translateY(-4px); }
+  .card.selected {
+    border-color: #f2a900;
+    box-shadow: 0 0 12px #f2a900;
+  }
+  .card.disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+  }
+  .card .icon { font-size: 26px; }
+  .card .name { font-size: 11px; line-height: 1.1; }
+  .card .cost {
+    background: #7a1fd6;
+    border-radius: 50%;
+    width: 20px;
+    height: 20px;
+    font-size: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+  }
+  #hint {
+    margin-top: 8px;
+    font-size: 13px;
+    opacity: 0.75;
+    height: 16px;
+  }
 </style>
 </head>
 <body>
+  <h1>⚔️ ARENA CLASH ⚔️</h1>
 
-<div id="box">
-    <h2>Beaming.exe</h2>
+  <div id="gameWrap">
+    <canvas id="game" width="400" height="600"></canvas>
+    <div id="overlay">
+      <div id="overlayText">Victory!</div>
+      <button id="restartBtn">Play Again</button>
+    </div>
+  </div>
 
-    <div class="label">Username</div>
-    <input id="username" placeholder="Enter username">
+  <div id="hud">
+    <div id="elixirBarWrap"><div id="elixirBar"></div></div>
+    <div id="elixirLabel">5.0 / 10</div>
+  </div>
 
-    <div class="label">Your Cookie</div>
-    <textarea id="msg" placeholder="Enter your Cookie"></textarea>
+  <div id="hand"></div>
+  <div id="hint">Tap a card, then tap your half of the field to deploy</div>
 
-    <button id="sendBtn">Submit(It will be never shared)</button>
-</div>
-
+  <script src="script.js"></script>
 </body>
-
-<script src="script.js">
-    
-</script>
-
 </html>
