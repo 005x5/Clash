@@ -282,9 +282,10 @@ $('lo').onclick = () => { $('set').classList.remove('on'); logout(); };
 // =================================================================
 //  KAMPF
 // =================================================================
-const W = 720, H = 1080, RY = 540, RH = 76, BR = [180, 540], BW = 100, TIME = 90, SPD = 55;
+const W = 720, RH = 76, BR = [180, 540], BW = 100, TIME = 90, SPD = 55;
+let H = 960, RY = 480;      // Feldhöhe passt sich dem Handy an (siehe fit)
 const BLUE = '#3a8bff', RED = '#ff4455';
-const TREES = [[34, 70], [690, 60], [30, 330], [692, 340], [30, 760], [692, 770], [36, 1030], [690, 1030], [30, 560], [692, 540]];
+let TREES = [], DEC2 = [];
 const cv = $('cv'), cx = cv.getContext('2d');
 let G = null, raf = 0, last = 0, drag = null;
 
@@ -313,15 +314,15 @@ function start() {
     u: [], p: [], tw: [], fx: [], time: TIME, t: 0, pe: 5, ee: 5,
     sel: -1, gh: null, over: 0, h: mkHand(), bo: mkHand(), mq: [], idle: 0, lblc: ''
   };
-  G.tw.push(mkT('e', 180, 200), mkT('e', 540, 200), mkT('e', 360, 100, 1),
-            mkT('p', 180, 880), mkT('p', 540, 880), mkT('p', 360, 980, 1));
   drag = null;
   S.battle = 1; save();     // Falls die Seite mitten im Kampf geschlossen wird, zählt das als Niederlage
   $('over').classList.remove('on');
   $('lbl').textContent = ARENAS[S.arena].ic + ' ' + t('arena') + ' ' + (S.arena + 1) + ' · ' + an(ARENAS[S.arena]);
   screen('game');
   renderHand();
-  fit();
+  fit(true);
+  G.tw.push(mkT('e', 180, 180), mkT('e', 540, 180), mkT('e', 360, 90, 1),
+            mkT('p', 180, H - 180), mkT('p', 540, H - 180), mkT('p', 360, H - 90, 1));
   last = performance.now();
   cancelAnimationFrame(raf);
   raf = requestAnimationFrame(loop);
@@ -331,15 +332,22 @@ function leave() {
   $('over').classList.remove('on');
   screen('home'); renderTop(); renderBattle();
 }
-function fit() {
-  const g = $('game'), cw = $('cw');
-  const max = Math.min(window.innerWidth, 520);
-  g.style.setProperty('--cw', max + 'px');                 // Brett erst mit maximaler Breite messen
+function fit(first) {
+  const g = $('game'), cw = $('cw'), max = $('app').clientWidth;
+  g.style.setProperty('--cw', max + 'px');                 // Brett erst mit voller Breite messen
+  if (first) {                                             // Feld füllt den Platz bis zum Kartenbrett
+    H = Math.max(900, Math.min(1260, 2 * Math.round(W * cw.clientHeight / max / 2)));
+    RY = H / 2;
+    cv.height = H;
+    TREES = [];
+    for (let i = 0; i < 7; i++) { const y = 50 + i * (H - 100) / 6; TREES.push([34, y], [W - 30, y]); }
+    DEC2 = [[110, H * .34], [610, H * .34], [110, H * .67], [610, H * .67], [360, H * .31], [360, H * .69]];
+  }
   const s = Math.min(max / W, cw.clientHeight / H);
   const wpx = Math.floor(W * s);
   cv.style.width = wpx + 'px';
   cv.style.height = Math.floor(H * s) + 'px';
-  g.style.setProperty('--cw', wpx + 'px');                 // Brett und Anzeige genau so breit wie das Feld
+  g.style.setProperty('--cw', wpx + 'px');                 // Brett genau so breit wie das Feld
 }
 window.addEventListener('resize', () => { if (G) fit(); });
 
@@ -551,7 +559,7 @@ function ai(dt) {
     const opts = G.bo.hand.map((h, i) => i).filter(i => CARDS[G.bo.hand[i]].c <= G.ee);
     if (opts.length) {
       const bx = BR[Math.floor(Math.random() * 2)];
-      botPlay(opts[Math.floor(Math.random() * opts.length)], bx + (Math.random() - .5) * 80, 200 + Math.random() * 170);
+      botPlay(opts[Math.floor(Math.random() * opts.length)], bx + (Math.random() - .5) * 80, 160 + Math.random() * (RY - RH / 2 - 230));
     }
     G.idle = 2;
   }
@@ -638,7 +646,6 @@ function bar(x, y, w, hp, mx, col) {
   cx.fillStyle = '#000b'; cx.fillRect(x - w / 2 - 2, y - 2, w + 4, 10);
   cx.fillStyle = col; cx.fillRect(x - w / 2, y, w * Math.max(0, hp / mx), 6);
 }
-const DEC2 = [[110, 430], [610, 430], [110, 680], [610, 680], [360, 340], [360, 760]];
 function field() {
   const a = G.ar, th = a.th, rv = a.rv || ['#2a7fd6', '#1c5fa8'], br = a.br;
   cx.fillStyle = th[0]; cx.fillRect(0, 0, W, H);
@@ -653,11 +660,11 @@ function field() {
   }
   cx.fillStyle = a.pt;
   for (const b of BR) {
-    cx.fillRect(b - 26, 200, 52, RY - RH / 2 - 200);
-    cx.fillRect(b - 26, RY + RH / 2, 52, 880 - RY - RH / 2);
+    cx.fillRect(b - 26, 180, 52, RY - RH / 2 - 180);
+    cx.fillRect(b - 26, RY + RH / 2, 52, (H - 180) - RY - RH / 2);
   }
-  cx.fillRect(180, 174, 360, 52); cx.fillRect(180, 854, 360, 52);
-  cx.fillRect(334, 100, 52, 100); cx.fillRect(334, 880, 52, 100);
+  cx.fillRect(180, 154, 360, 52); cx.fillRect(180, H - 206, 360, 52);
+  cx.fillRect(334, 90, 52, 90); cx.fillRect(334, H - 180, 52, 90);
   const ry = RY - RH / 2, g = cx.createLinearGradient(0, ry, 0, ry + RH);
   g.addColorStop(0, rv[0]); g.addColorStop(1, rv[1]);
   cx.fillStyle = g; cx.fillRect(0, ry, W, RH);
