@@ -16,7 +16,7 @@ let LANG = localStorage.getItem(LANGK) || ((navigator.language || 'de').toLowerC
 let USER = null;          // { key, name, guest }
 let authMode = 'login';
 function fresh() {
-  return { level: 1, xp: 0, coins: 200, wins: 0, losses: 0, trophies: 0, battle: 0,
+  return { level: 1, xp: 0, coins: 200, wins: 0, losses: 0, trophies: 0, battle: 0, cl: {},
     owned: STARTERS.slice(), decks: [STARTERS.slice(), [], [], [], []], di: 0, arena: 0 };
 }
 let S = fresh();
@@ -35,8 +35,8 @@ const L = {
     battle: 'KAMPF', battleNav: 'Kampf', shop: 'Shop', cards: 'Karten', arenas: 'Arenen', cont: '▶ Weiter',
     settings: '⚙️ Einstellungen', lang: 'Sprache', reset: 'Fortschritt löschen', close: 'Schließen',
     resetQ: 'Wirklich den gesamten Fortschritt löschen?', arena: 'Arena', next: 'Nächste:',
-    deck: 'Dein Deck', coll: 'Sammlung', hint: 'Tippe eine Karte, um sie ins Deck zu legen oder zu entfernen (max. 8, mind. 4 zum Spielen)',
-    deckFull: 'Deck ist voll (max. 8)', deckMin: 'Mindestens 1 Karte im Deck!', need4: 'Du brauchst mind. 4 Karten im Deck!',
+    deck: 'Dein Deck', coll: 'Sammlung', hint: 'Tippe eine Karte, um sie ins Deck zu legen oder zu entfernen (max. 4, mind. 4 zum Spielen)',
+    deckFull: 'Deck ist voll (max. 4)', deckMin: 'Mindestens 1 Karte im Deck!', need4: 'Du brauchst mind. 4 Karten im Deck!',
     buyFirst: 'Erst im Shop kaufen!', owned: '✓ Besitzt', noCoins: 'Zu wenig Coins!', bought: 'freigeschaltet!',
     noElix: 'Zu wenig Elixier!', onlyHalf: 'Nur in deiner Hälfte!', win: '🏆 Sieg!', loss: '💀 Niederlage', draw: '🤝 Unentschieden',
     lvlUp: '⭐ Level {n} erreicht!', active: 'AKTIV', pick: 'WÄHLEN', lvl: 'Level', reward: 'Belohnung', switched: 'Arena gewechselt!'
@@ -45,16 +45,17 @@ const L = {
     battle: 'BATTLE', battleNav: 'Battle', shop: 'Shop', cards: 'Cards', arenas: 'Arenas', cont: '▶ Continue',
     settings: '⚙️ Settings', lang: 'Language', reset: 'Reset progress', close: 'Close',
     resetQ: 'Really delete all progress?', arena: 'Arena', next: 'Next:',
-    deck: 'Your Deck', coll: 'Collection', hint: 'Tap a card to add/remove it (max. 8, at least 4 to play)',
-    deckFull: 'Deck is full (max. 8)', deckMin: 'Keep at least 1 card in your deck!', need4: 'You need at least 4 cards in your deck!',
+    deck: 'Your Deck', coll: 'Collection', hint: 'Tap a card to add/remove it (max. 4, at least 4 to play)',
+    deckFull: 'Deck is full (max. 4)', deckMin: 'Keep at least 1 card in your deck!', need4: 'You need at least 4 cards in your deck!',
     buyFirst: 'Buy it in the shop first!', owned: '✓ Owned', noCoins: 'Not enough coins!', bought: 'unlocked!',
     noElix: 'Not enough elixir!', onlyHalf: 'Only on your side!', win: '🏆 Victory!', loss: '💀 Defeat', draw: '🤝 Draw',
     lvlUp: '⭐ Reached level {n}!', active: 'ACTIVE', pick: 'SELECT', lvl: 'Level', reward: 'Reward', switched: 'Arena switched!'
   }
 };
 Object.assign(L.de, {
+  lv: 'Lv', maxed: 'Schon auf Maximal-Level!',
   need3: 'Du brauchst mind. 3 Karten im Deck!',
-  hint: 'Tippe eine Karte, um sie ins Deck zu legen oder zu entfernen (max. 8, mind. 3 zum Spielen)',
+  hint: 'Tippe eine Karte, um sie ins Deck zu legen oder zu entfernen (max. 4, mind. 3 zum Spielen)',
   login: 'Anmelden', register: 'Registrieren', username: 'Benutzername', password: 'Passwort', password2: 'Passwort wiederholen',
   guest: '👤 Als Gast spielen', logout: 'Abmelden / Konto wechseln', guestName: 'Gast',
   errName: 'Name: 3–16 Zeichen (Buchstaben, Zahlen, _ . -)', errPw: 'Passwort: mind. 4 Zeichen', errExists: 'Name ist schon vergeben',
@@ -65,8 +66,9 @@ Object.assign(L.de, {
   crashPen: 'Kampf abgebrochen: Niederlage! −{x} XP, −{c} 🪙'
 });
 Object.assign(L.en, {
+  lv: 'Lv', maxed: 'Already at max level!',
   need3: 'You need at least 3 cards in your deck!',
-  hint: 'Tap a card to add/remove it (max. 8, at least 3 to play)',
+  hint: 'Tap a card to add/remove it (max. 4, at least 3 to play)',
   login: 'Log in', register: 'Register', username: 'Username', password: 'Password', password2: 'Repeat password',
   guest: '👤 Play as guest', logout: 'Log out / switch account', guestName: 'Guest',
   errName: 'Name: 3–16 characters (letters, numbers, _ . -)', errPw: 'Password: at least 4 characters', errExists: 'Name is already taken',
@@ -107,23 +109,42 @@ const CARDS = {
   electro:    { c: 4, n: 1, hp: 240,  d: 50,  sp: .95,  r: 170, as: .6,  col: '#66ddff', ic: '⚡', rad: 12, p: 420, rg: 1, nm: ['Elektro-Magier', 'Electro Mage'] },
   barbarian:  { c: 5, n: 3, hp: 300,  d: 50,  sp: 1.2,  r: 24,  as: 1.1, col: '#ffb04a', ic: '🧔', rad: 12, p: 350, rg: 0, nm: ['Barbaren', 'Barbarians'] },
   witch:      { c: 5, n: 1, hp: 300,  d: 60,  sp: .9,   r: 160, as: 1.1, col: '#bb66ff', ic: '🧙‍♀️', rad: 13, p: 550, rg: 1, nm: ['Hexe', 'Witch'] },
-  golem:      { c: 8, n: 1, hp: 2600, d: 130, sp: .55,  r: 30,  as: 1.8, col: '#998877', ic: '🗿', rad: 20, p: 900, rg: 0, tOnly: 1, nm: ['Golem', 'Golem'] }
+  golem:      { c: 8, n: 1, hp: 2600, d: 130, sp: .55,  r: 30,  as: 1.8, col: '#998877', ic: '🗿', rad: 20, p: 900, rg: 0, tOnly: 1, nm: ['Golem', 'Golem'] },
+  bandit:     { c: 3, n: 1, hp: 350,  d: 75,  sp: 1.9,  r: 24,  as: .9,  col: '#8899aa', ic: '🥷', rad: 13, p: 320, rg: 0, nm: ['Banditin', 'Bandit'] },
+  princess:   { c: 3, n: 1, hp: 140,  d: 45,  sp: .9,   r: 260, as: 1.4, col: '#ff88cc', ic: '👸', rad: 11, p: 380, rg: 1, nm: ['Prinzessin', 'Princess'] },
+  royalghost: { c: 3, n: 1, hp: 280,  d: 60,  sp: 1.3,  r: 24,  as: 1.0, col: '#aabbee', ic: '👻', rad: 12, p: 360, rg: 0, nm: ['Königsgeist', 'Royal Ghost'] },
+  icewiz:     { c: 4, n: 1, hp: 240,  d: 45,  sp: .95,  r: 165, as: .9,  col: '#88ddff', ic: '🧊', rad: 12, p: 400, rg: 1, nm: ['Eismagier', 'Ice Mage'] },
+  ram:        { c: 4, n: 1, hp: 580,  d: 95,  sp: 1.7,  r: 26,  as: 1.4, col: '#bb8855', ic: '🐏', rad: 15, p: 420, rg: 0, tOnly: 1, nm: ['Rammbock', 'Battering Ram'] },
+  darkprince: { c: 4, n: 1, hp: 500,  d: 85,  sp: 1.2,  r: 26,  as: 1.1, col: '#5544aa', ic: '🌑', rad: 15, p: 450, rg: 0, nm: ['Dunkler Prinz', 'Dark Prince'] },
+  balloon:    { c: 5, n: 1, hp: 1000, d: 200, sp: .8,   r: 22,  as: 2.0, col: '#ff6677', ic: '🎈', rad: 16, p: 600, rg: 0, fly: 1, tOnly: 1, nm: ['Ballon', 'Balloon'] },
+  megaknight: { c: 7, n: 1, hp: 2000, d: 190, sp: 1.0,  r: 30,  as: 1.7, col: '#556677', ic: '🦾', rad: 19, p: 850, rg: 0, nm: ['Mega-Ritter', 'Mega Knight'] }
 };
 // rv = Flussfarben, th = Rasterfarben
+// th=Boden, pat=Muster (0 Schach,1 Streifen,2 Diagonal,3 Punkte), pt=Wege, rv/wv=Fluss, br=Brücke, dec/dec2=Deko
+const mkA = (n, ic, lv, rw, o) => ({ n, ic, lv, rw, ...o });
 const ARENAS = [
-  { n: ['Trainingslager', 'Training Camp'],    ic: '🏟️', lv: 1,  rw: 30,  th: ['#6aa84f', '#62a049'] },
-  { n: ['Goblin-Stadion', 'Goblin Stadium'],   ic: '👺', lv: 2,  rw: 45,  th: ['#7aa83a', '#719e34'] },
-  { n: ['Knochengrube', 'Bone Pit'],           ic: '💀', lv: 3,  rw: 60,  th: ['#6a6a7a', '#62626f'] },
-  { n: ['Barbaren-Arena', 'Barbarian Arena'],  ic: '⚔️', lv: 4,  rw: 75,  th: ['#b08a4a', '#a68242'] },
-  { n: ['P.E.K.K.A-Halle', 'P.E.K.K.A Hall'],  ic: '🤖', lv: 5,  rw: 90,  th: ['#5a6a8a', '#526282'] },
-  { n: ['Königsarena', 'Royal Arena'],         ic: '👑', lv: 6,  rw: 105, th: ['#9a4a6a', '#904464'] },
-  { n: ['Eispalast', 'Frozen Peak'],           ic: '❄️', lv: 7,  rw: 120, th: ['#bfe3ee', '#b2d9e6'], rv: ['#7fd0f0', '#4aa6d8'] },
-  { n: ['Vulkankrater', 'Volcano Crater'],     ic: '🌋', lv: 8,  rw: 140, th: ['#7a4a38', '#6e4232'], rv: ['#ff8a2a', '#c8421a'] },
-  { n: ['Geisterschloss', 'Haunted Castle'],   ic: '👻', lv: 10, rw: 160, th: ['#4a4a6a', '#424262'], rv: ['#5a4aa0', '#3a2a78'] },
-  { n: ['Dracheninsel', 'Dragon Isle'],        ic: '🐲', lv: 12, rw: 185, th: ['#3f8a6a', '#378062'] },
-  { n: ['Himmelsfestung', 'Sky Fortress'],     ic: '☁️', lv: 15, rw: 210, th: ['#9ab6d8', '#8eacd0'], rv: ['#ddeeff', '#b0c8e8'] },
-  { n: ['Legendenarena', 'Legendary Arena'],   ic: '🏆', lv: 18, rw: 250, th: ['#c8aa4a', '#be9f42'], rv: ['#ffd24a', '#d89a10'] }
+  mkA(['Trainingslager', 'Training Camp'], '🏟️', 1, 30, { th: ['#6aa84f', '#62a049'], pat: 0, pt: '#e0c88c80', dec: '🌳', dec2: '🌼', br: ['#9a6a38', '#3a2410'] }),
+  mkA(['Goblin-Stadion', 'Goblin Stadium'], '👺', 2, 45, { th: ['#7aa83a', '#6c9a30'], pat: 1, pt: '#d9c08a80', dec: '🌲', dec2: '🍄', br: ['#8a5a2c', '#2e1c0a'] }),
+  mkA(['Knochengrube', 'Bone Pit'], '💀', 3, 60, { th: ['#6a6a7a', '#5e5e6c'], pat: 3, pt: '#b0a89488', dec: '🪦', dec2: '💀', br: ['#bdb5a2', '#4a4438'], rv: ['#4a6a5a', '#2e4a3e'] }),
+  mkA(['Barbaren-Arena', 'Barbarian Arena'], '⚔️', 4, 75, { th: ['#d8b36a', '#cfa95f'], pat: 2, pt: '#a8794080', dec: '🌵', dec2: '🪨', br: ['#7a4a22', '#2a1608'] }),
+  mkA(['P.E.K.K.A-Halle', 'P.E.K.K.A Hall'], '🤖', 5, 90, { th: ['#6a7a9a', '#5e6e92'], pat: 0, pt: '#9aa8c880', dec: '⚙️', dec2: '🔩', br: ['#8a9ab8', '#2a3248'], rv: ['#2a5fb8', '#1a3f88'] }),
+  mkA(['Königsarena', 'Royal Arena'], '👑', 6, 105, { th: ['#a85a7a', '#9a4e70'], pat: 0, pt: '#f0d08a80', dec: '🌹', dec2: '👑', br: ['#d4aa4a', '#5a420e'] }),
+  mkA(['Eispalast', 'Frozen Peak'], '❄️', 7, 120, { th: ['#bfe3ee', '#b2d9e6'], pat: 2, pt: '#ffffffaa', dec: '⛄', dec2: '❄️', br: ['#d8e8f0', '#5a7a90'], rv: ['#7fd0f0', '#4aa6d8'], wv: '#ffffff99' }),
+  mkA(['Vulkankrater', 'Volcano Crater'], '🌋', 8, 140, { th: ['#7a4a38', '#6e4232'], pat: 3, pt: '#c8883a70', dec: '🌋', dec2: '🔥', br: ['#3a2a28', '#140c0a'], rv: ['#ff8a2a', '#c8421a'], wv: '#ffd24a88' }),
+  mkA(['Geisterschloss', 'Haunted Castle'], '👻', 10, 160, { th: ['#4a4a6a', '#424262'], pat: 1, pt: '#8a8ab080', dec: '🎃', dec2: '🦇', br: ['#5a4a6a', '#1a1228'], rv: ['#5a4aa0', '#3a2a78'], wv: '#c8b8ff66' }),
+  mkA(['Dracheninsel', 'Dragon Isle'], '🐲', 12, 185, { th: ['#3f8a6a', '#377e60'], pat: 2, pt: '#e8d89a80', dec: '🌴', dec2: '🥚', br: ['#9a6a38', '#3a2410'], rv: ['#20b8c0', '#10808a'] }),
+  mkA(['Himmelsfestung', 'Sky Fortress'], '☁️', 15, 210, { th: ['#9ab6d8', '#8eacd0'], pat: 0, pt: '#ffffffaa', dec: '☁️', dec2: '🕊️', br: ['#f0f4fa', '#7a8aa8'], rv: ['#ddeeff', '#b0c8e8'], wv: '#ffffffcc' }),
+  mkA(['Legendenarena', 'Legendary Arena'], '🏆', 18, 250, { th: ['#c8aa4a', '#be9f42'], pat: 3, pt: '#fff0b090', dec: '🗿', dec2: '⭐', br: ['#e8c860', '#6a4a08'], rv: ['#ffd24a', '#d89a10'], wv: '#fff8' }),
+  mkA(['Dschungel', 'Jungle'], '🦜', 20, 280, { th: ['#2f8a3a', '#287a32'], pat: 1, pt: '#d8c08a80', dec: '🌴', dec2: '🦜', br: ['#7a5a2a', '#2a1c08'], rv: ['#2aa88a', '#157a62'] }),
+  mkA(['Piratenbucht', 'Pirate Bay'], '🏴‍☠️', 22, 310, { th: ['#e0c88a', '#d6bc7c'], pat: 2, pt: '#a8794080', dec: '🌴', dec2: '⚓', br: ['#6a4a22', '#241406'], rv: ['#1a9ad8', '#0a6aa8'] }),
+  mkA(['Kristallhöhle', 'Crystal Cave'], '💎', 25, 340, { th: ['#5a4a8a', '#524280'], pat: 3, pt: '#b8a8e880', dec: '💎', dec2: '🔮', br: ['#8a7aca', '#2a1a5a'], rv: ['#7a4ae0', '#4a2ab0'], wv: '#e0d0ff88' }),
+  mkA(['Wüstenruinen', 'Desert Ruins'], '🏜️', 28, 370, { th: ['#e8c070', '#dcb264'], pat: 0, pt: '#b88a4a80', dec: '🏺', dec2: '🐍', br: ['#a87a3a', '#3a2208'], rv: ['#58b8d8', '#2a88b0'] }),
+  mkA(['Raumstation', 'Space Station'], '🚀', 32, 400, { th: ['#2a2a4a', '#242442'], pat: 3, pt: '#6a6aa080', dec: '🛰️', dec2: '🌟', br: ['#8a9ac0', '#1a2038'], rv: ['#1a1a60', '#0a0a38'], wv: '#8a8aff88' }),
+  mkA(['Chaos-Arena', 'Chaos Arena'], '🌀', 36, 450, { th: ['#6a2a6a', '#5e2260'], pat: 1, pt: '#ff80c080', dec: '🌀', dec2: '⚡', br: ['#c040a0', '#3a0a30'], rv: ['#ff40a0', '#a01070'], wv: '#ffd0f088' })
 ];
+const MAXLV = 10;
+const lvl = k => (S.cl && S.cl[k]) || 1;
+const upCost = k => (40 + CARDS[k].c * 15) * lvl(k);
 const xpFor = l => 100 + (l - 1) * 80;
 const cn = k => CARDS[k].nm[li()];
 const an = a => a.n[li()];
@@ -132,7 +153,7 @@ const an = a => a.n[li()];
 function sanitize() {
   S.owned = [...new Set([...STARTERS, ...S.owned.filter(k => CARDS[k])])];
   S.decks = S.decks.slice(0, 5); while (S.decks.length < 5) S.decks.push([]);
-  S.decks = S.decks.map(d => d.filter(k => CARDS[k] && S.owned.includes(k)).slice(0, 8));
+  S.decks = S.decks.map(d => d.filter(k => CARDS[k] && S.owned.includes(k)).slice(0, 4));
   if (!(S.di >= 0 && S.di < 5)) S.di = 0;
   if (dk().length < 3) S.decks[S.di] = S.owned.slice(0, 3);
   if (!ARENAS[S.arena] || ARENAS[S.arena].lv > S.level) S.arena = 0;
@@ -152,7 +173,7 @@ function screen(id) {
 }
 function cardHTML(k, cls, extra) {
   const c = CARDS[k];
-  return `<div class="gc ${cls || ''}" data-k="${k}" style="--c:${c.col}"><i class="el">${c.c}</i><b>${c.ic}</b><span class="o">${cn(k)}</span>${extra || ''}</div>`;
+  return `<div class="gc ${cls || ''}" data-k="${k}" style="--c:${c.col}"><i class="el">${c.c}</i><b>${c.ic}</b><span class="o">${cn(k)}</span>${S.owned.includes(k) ? `<em class="lvb o">${t('lv')} ${lvl(k)}</em>` : ''}${extra || ''}</div>`;
 }
 function renderTop() {
   $('lv').textContent = S.level;
@@ -165,6 +186,7 @@ function renderBattle() {
   const a = ARENAS[S.arena];
   $('aName').textContent = a.ic + ' ' + an(a);
   $('aSub').textContent = t('arena') + ' ' + (S.arena + 1);
+  $('castle').textContent = a.ic === '🏟️' ? '🏰' : a.ic;
   $('scene').style.background = `radial-gradient(circle at 50% 60%,${a.th[0]},${a.th[1]} 55%,#0a1a10)`;
   $('who').textContent = USER.guest ? '👤 ' + t('guestName') : (BADGES[USER.key] || '🙂') + ' ' + USER.name;
   $('miniDeck').innerHTML = dk().map(k => cardHTML(k)).join('');
@@ -172,10 +194,10 @@ function renderBattle() {
 function renderCards() {
   const d = dk();
   let slots = d.map(k => cardHTML(k, 'in')).join('');
-  for (let i = d.length; i < 8; i++) slots += '<div class="empty"></div>';
+  for (let i = d.length; i < 4; i++) slots += '<div class="empty"></div>';
   const tabs = S.decks.map((x, i) => `<button class="dt${i === S.di ? ' on' : ''}" data-d="${i}">${i + 1}</button>`).join('');
   $('v-cards').innerHTML =
-    `<h3 class="o">${t('deck')} ${S.di + 1} (${d.length}/8)</h3><div class="dtabs">${tabs}</div><div class="slots">${slots}</div>
+    `<h3 class="o">${t('deck')} ${S.di + 1} (${d.length}/4)</h3><div class="dtabs">${tabs}</div><div class="slots">${slots}</div>
      <p class="hint">${t('hint')}</p>
      <h3 class="o">${t('coll')}</h3>
      <div class="grid">${Object.keys(CARDS).map(k => {
@@ -187,16 +209,17 @@ function renderShop() {
   $('v-shop').innerHTML = `<h3 class="o">🛒 ${t('shop')}</h3><div class="grid" style="padding-bottom:12px">${
     Object.keys(CARDS).map(k => {
       const own = S.owned.includes(k);
-      return cardHTML(k, own ? 'in' : '', own
-        ? `<div class="price ok o">✓</div>`
-        : `<div class="price o">🪙 ${CARDS[k].p}</div>`);
+      const extra = !own ? `<div class="price o">🪙 ${CARDS[k].p}</div>`
+        : lvl(k) >= MAXLV ? `<div class="price ok o">MAX</div>`
+        : `<div class="price up o">⬆ 🪙 ${upCost(k)}</div>`;
+      return cardHTML(k, own ? 'in' : '', extra);
     }).join('')}</div>`;
 }
 function renderArenas() {
   $('v-arena').innerHTML = `<h3 class="o">🏟️ ${t('arenas')}</h3>` + ARENAS.map((a, i) => {
     const un = S.level >= a.lv, cur = S.arena === i;
     const tag = cur ? `<div class="tag c o">${t('active')}</div>` : un ? `<div class="tag o" data-s="${i}">${t('pick')}</div>` : `<div class="tag l o">Lvl ${a.lv}</div>`;
-    return `<div class="ar ${cur ? 'cur' : un ? '' : 'lock'}"><i>${a.ic}</i><div><span class="o">${an(a)}</span><small>${t('lvl')} ${a.lv} · ${t('reward')} 🪙 ${a.rw}</small></div>${tag}</div>`;
+    return `<div class="ar ${cur ? 'cur' : un ? '' : 'lock'}"><i>${a.ic}</i><div><span class="o">${t('arena')} ${i + 1} · ${an(a)}</span><small>${t('lvl')} ${a.lv} · ${t('reward')} 🪙 ${a.rw}</small></div>${tag}</div>`;
   }).join('');
 }
 function view(v) {
@@ -217,16 +240,24 @@ $('v-cards').onclick = e => {
   if (!S.owned.includes(k)) return toast(t('buyFirst'), true);
   const i = d.indexOf(k);
   if (i >= 0) { if (d.length <= 1) return toast(t('deckMin'), true); d.splice(i, 1); }
-  else { if (d.length >= 8) return toast(t('deckFull'), true); d.push(k); }
+  else { if (d.length >= 4) return toast(t('deckFull'), true); d.push(k); }
   save(); renderCards();
 };
 $('v-shop').onclick = e => {
   const el = e.target.closest('[data-k]'); if (!el) return;
   const k = el.dataset.k, c = CARDS[k];
-  if (S.owned.includes(k)) return;
+  if (S.owned.includes(k)) {            // Karte verbessern
+    const l = lvl(k);
+    if (l >= MAXLV) return toast(t('maxed'), true);
+    const cost = upCost(k);
+    if (S.coins < cost) return toast(t('noCoins'), true);
+    S.coins -= cost; S.cl[k] = l + 1;
+    save(); renderTop(); renderShop();
+    return toast('⬆ ' + cn(k) + ' ' + t('lv') + ' ' + (l + 1));
+  }
   if (S.coins < c.p) return toast(t('noCoins'), true);
   S.coins -= c.p; S.owned.push(k);
-  if (dk().length < 8) dk().push(k);
+  if (dk().length < 4) dk().push(k);
   save(); renderTop(); renderShop();
   toast('✅ ' + cn(k) + ' ' + t('bought'));
 };
@@ -287,7 +318,7 @@ function start() {
   drag = null;
   S.battle = 1; save();     // Falls die Seite mitten im Kampf geschlossen wird, zählt das als Niederlage
   $('over').classList.remove('on');
-  $('nxtl').textContent = t('next');
+  $('lbl').textContent = ARENAS[S.arena].ic + ' ' + t('arena') + ' ' + (S.arena + 1) + ' · ' + an(ARENAS[S.arena]);
   screen('game');
   renderHand();
   fit();
@@ -301,18 +332,20 @@ function leave() {
   screen('home'); renderTop(); renderBattle();
 }
 function fit() {
-  const w = $('cw');
-  const s = Math.min(w.clientWidth / W, w.clientHeight / H);
-  cv.style.width = W * s + 'px';
-  cv.style.height = H * s + 'px';
+  const g = $('game'), cw = $('cw');
+  const max = Math.min(window.innerWidth, 520);
+  g.style.setProperty('--cw', max + 'px');                 // Brett erst mit maximaler Breite messen
+  const s = Math.min(max / W, cw.clientHeight / H);
+  const wpx = Math.floor(W * s);
+  cv.style.width = wpx + 'px';
+  cv.style.height = Math.floor(H * s) + 'px';
+  g.style.setProperty('--cw', wpx + 'px');                 // Brett und Anzeige genau so breit wie das Feld
 }
 window.addEventListener('resize', () => { if (G) fit(); });
 
 // ---------- Hand (unten wie im Original, mit "Nächste"-Karte) ----------
 function renderHand() {
   $('hand').innerHTML = G.h.hand.map(k => cardHTML(k)).join('');
-  $('next').innerHTML = G.h.q.length ? cardHTML(G.h.q[0]) : '';
-  $('nxt').style.visibility = G.h.q.length ? 'visible' : 'hidden';
   [...$('hand').children].forEach((el, i) => {
     el.addEventListener('pointerdown', ev => {
       ev.preventDefault();
@@ -373,11 +406,11 @@ function place(i, x, y) {
 
 // ---------- Einheiten ----------
 function spawn(team, key, x, y) {
-  const c = CARDS[key];
+  const c = CARDS[key], lm = 1 + .1 * (lvl(key) - 1);   // Karten-Level (Bot hat dieselben Level wie du)
   for (let i = 0; i < c.n; i++) {
     G.u.push({
       team, key, x: x + (i - (c.n - 1) / 2) * 20, y,
-      hp: c.hp * G.m, maxhp: c.hp * G.m, dmg: c.d * G.m, speed: c.sp * SPD, range: c.r, as: c.as,
+      hp: c.hp * G.m * lm, maxhp: c.hp * G.m * lm, dmg: c.d * G.m * lm, speed: c.sp * SPD, range: c.r, as: c.as,
       rad: c.rad, col: c.col, ic: c.ic, rg: c.rg, fly: c.fly, tOnly: c.tOnly, cd: .5, fl: 0
     });
   }
@@ -539,16 +572,14 @@ function update(dt) {
 
   $('ef').style.width = G.pe / 10 * 100 + '%';
   $('en').textContent = Math.floor(G.pe);
-  const ns = G.pe >= 10 ? 'MAX' : Math.max(1, Math.ceil((1 - G.pe % 1) / rate())) + (LANG === 'de' ? ' Sek' : ' sec');
-  if ($('nsec').textContent !== ns) $('nsec').textContent = ns;
   refreshHand();
 
   const mine = G.tw.filter(w => w.team === 'e' && w.dead).length;
   const theirs = G.tw.filter(w => w.team === 'p' && w.dead).length;
   G.mine = mine; G.theirs = theirs;
   const sec = Math.max(0, Math.ceil(G.time));
-  const lb = `${G.ar.ic} ${an(G.ar)} · ${Math.floor(sec / 60)}:${String(sec % 60).padStart(2, '0')}${G.time < 30 ? ' ⚡x2' : ''}`;
-  if (lb !== G.lblc) { G.lblc = lb; $('lbl').textContent = lb; }
+  const lb = `🕐 ${Math.floor(sec / 60)}:${String(sec % 60).padStart(2, '0')}${G.time < 30 ? ' ⚡x2' : ''}`;
+  if (lb !== G.lblc) { G.lblc = lb; $('tm').textContent = lb; }
 
   if (G.tw.find(w => w.team === 'e' && w.king).dead) return end('win', 3);
   if (G.tw.find(w => w.team === 'p' && w.king).dead) return end('loss', mine);
@@ -607,24 +638,30 @@ function bar(x, y, w, hp, mx, col) {
   cx.fillStyle = '#000b'; cx.fillRect(x - w / 2 - 2, y - 2, w + 4, 10);
   cx.fillStyle = col; cx.fillRect(x - w / 2, y, w * Math.max(0, hp / mx), 6);
 }
+const DEC2 = [[110, 430], [610, 430], [110, 680], [610, 680], [360, 340], [360, 760]];
 function field() {
-  const th = G.ar.th, rv = G.ar.rv || ['#2a7fd6', '#1c5fa8'];
+  const a = G.ar, th = a.th, rv = a.rv || ['#2a7fd6', '#1c5fa8'], br = a.br;
+  cx.fillStyle = th[0]; cx.fillRect(0, 0, W, H);
   for (let y = 0; y < H; y += 60) for (let x = 0; x < W; x += 60) {
-    cx.fillStyle = ((x + y) / 60) % 2 ? th[1] : th[0]; cx.fillRect(x, y, 60, 60);
+    const i = x / 60, k = y / 60;
+    const alt = a.pat === 1 ? i % 2 : a.pat === 2 ? ((i + k) % 3 === 0) : a.pat === 3 ? 0 : (i + k) % 2;
+    if (alt) { cx.fillStyle = th[1]; cx.fillRect(x, y, 60, 60); }
   }
-  // Wege
-  cx.fillStyle = '#e0c88c80';
+  if (a.pat === 3) {
+    cx.fillStyle = th[1];
+    for (let y = 20; y < H; y += 40) for (let x = (y / 40) % 2 ? 20 : 40; x < W; x += 40) { cx.beginPath(); cx.arc(x, y, 5, 0, 6.3); cx.fill(); }
+  }
+  cx.fillStyle = a.pt;
   for (const b of BR) {
     cx.fillRect(b - 26, 200, 52, RY - RH / 2 - 200);
     cx.fillRect(b - 26, RY + RH / 2, 52, 880 - RY - RH / 2);
   }
   cx.fillRect(180, 174, 360, 52); cx.fillRect(180, 854, 360, 52);
   cx.fillRect(334, 100, 52, 100); cx.fillRect(334, 880, 52, 100);
-  // Fluss
   const ry = RY - RH / 2, g = cx.createLinearGradient(0, ry, 0, ry + RH);
   g.addColorStop(0, rv[0]); g.addColorStop(1, rv[1]);
   cx.fillStyle = g; cx.fillRect(0, ry, W, RH);
-  cx.strokeStyle = '#fff5'; cx.lineWidth = 3;
+  cx.strokeStyle = a.wv || '#fff5'; cx.lineWidth = 3;
   for (let i = 0; i < 3; i++) {
     cx.beginPath();
     for (let x = 0; x <= W; x += 10) {
@@ -634,13 +671,17 @@ function field() {
     cx.stroke();
   }
   for (const b of BR) {
-    cx.fillStyle = '#9a6a38'; cx.fillRect(b - BW / 2, ry - 6, BW, RH + 12);
-    cx.strokeStyle = '#3a2410'; cx.lineWidth = 3; cx.strokeRect(b - BW / 2, ry - 6, BW, RH + 12);
+    cx.fillStyle = br[0]; cx.fillRect(b - BW / 2, ry - 6, BW, RH + 12);
+    cx.strokeStyle = br[1]; cx.lineWidth = 3; cx.strokeRect(b - BW / 2, ry - 6, BW, RH + 12);
     cx.strokeStyle = '#0003'; cx.lineWidth = 2;
     for (let k = ry; k < ry + RH; k += 14) { cx.beginPath(); cx.moveTo(b - BW / 2, k); cx.lineTo(b + BW / 2, k); cx.stroke(); }
   }
-  cx.font = '58px serif'; cx.textAlign = 'center'; cx.textBaseline = 'middle'; cx.fillStyle = '#fff';
-  TREES.forEach(([x, y]) => cx.fillText('🌳', x, y));
+  cx.textAlign = 'center'; cx.textBaseline = 'middle'; cx.fillStyle = '#fff';
+  cx.font = '58px serif';
+  TREES.forEach(([x, y]) => cx.fillText(a.dec, x, y));
+  cx.font = '36px serif'; cx.globalAlpha = .9;
+  DEC2.forEach(([x, y]) => cx.fillText(a.dec2, x, y));
+  cx.globalAlpha = 1;
   if (G.sel >= 0) { cx.fillStyle = '#50a0ff26'; cx.fillRect(0, RY + RH / 2, W, H - RY - RH / 2); }
 }
 function crownBox(y, n, col) {
