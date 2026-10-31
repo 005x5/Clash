@@ -10,7 +10,7 @@
 html,body{width:100%;height:100%;overflow:hidden;overscroll-behavior:none;background:#0b2350;color:#fff;touch-action:manipulation}
 .o{text-shadow:-2px -2px 0 #000,2px -2px 0 #000,-2px 2px 0 #000,2px 2px 0 #000,0 -2px 0 #000,0 2px 0 #000,-2px 0 0 #000,2px 0 0 #000,0 3px 0 #000}
 button{cursor:pointer;color:#fff;border:0}
-.screen{position:fixed;inset:0;display:none;flex-direction:column;padding-top:var(--st)}
+.screen{position:absolute;inset:0;display:none;flex-direction:column;padding-top:var(--st)}
 .screen.on{display:flex}
 
 /* ---------- HOME ---------- */
@@ -64,7 +64,7 @@ h3{font-size:18px;margin:8px 0;text-align:center}
 #miniDeck .gc span{display:none}#miniDeck .gc b{font-size:22px}#miniDeck .gc{min-width:0}
 
 /* ---------- OVERLAYS ---------- */
-#over,.mb{position:fixed;inset:0;display:none;align-items:center;justify-content:center;flex-direction:column;gap:12px;padding:20px;text-align:center;z-index:50;background:#000c}
+#over,.mb{position:absolute;inset:0;display:none;align-items:center;justify-content:center;flex-direction:column;gap:12px;padding:20px;text-align:center;z-index:50;background:#000c}
 #over.on,.mb.on{display:flex}
 #rt{font-size:clamp(38px,12vw,64px);animation:pop .5s}
 @keyframes pop{from{transform:scale(.3);opacity:0}}
@@ -72,11 +72,11 @@ h3{font-size:18px;margin:8px 0;text-align:center}
 #ok,#rst,#cl,.lg{padding:12px 34px;font-size:20px;background:linear-gradient(#7f7,#2a9a3a);border:3px solid #000;border-radius:14px;box-shadow:0 5px 0 #0007}
 #ok{background:linear-gradient(#ffe266,#f09000);color:#3a1a00}
 #ok:active,.lg:active,#cl:active,#rst:active{transform:translateY(3px)}
-.md{width:min(90vw,380px);padding:20px;background:linear-gradient(#2a62b8,#16376f);border:4px solid #000;border-radius:18px;display:flex;flex-direction:column;gap:14px}
+.md{width:min(90%,380px);padding:20px;background:linear-gradient(#2a62b8,#16376f);border:4px solid #000;border-radius:18px;display:flex;flex-direction:column;gap:14px}
 .md h2{font-size:26px}
 .lg{padding:10px 14px;font-size:17px;background:#3a4a66;flex:1}.lg.on{background:linear-gradient(#ffe266,#f09000);color:#3a1a00}
 #rst{background:linear-gradient(#e0503a,#a01e10);font-size:16px}#cl{background:linear-gradient(#6a7a96,#3a465e);font-size:16px}
-#toast{position:fixed;top:calc(var(--st) + 70px);left:50%;transform:translate(-50%,-20px);padding:10px 22px;background:linear-gradient(#4d4,#186a28);border:3px solid #000;border-radius:12px;opacity:0;transition:.25s;pointer-events:none;z-index:99;font-size:15px;white-space:nowrap}
+#toast{position:absolute;top:calc(var(--st) + 70px);left:50%;transform:translate(-50%,-20px);padding:10px 22px;background:linear-gradient(#4d4,#186a28);border:3px solid #000;border-radius:12px;opacity:0;transition:.25s;pointer-events:none;z-index:99;font-size:15px;white-space:nowrap}
 #toast.on{opacity:1;transform:translate(-50%,0)}#toast.err{background:linear-gradient(#f55,#a01010)}
 .slots .gc span{font-size:10px}
 #who{font-size:21px;text-align:center;margin-bottom:-4px}
@@ -85,7 +85,7 @@ h3{font-size:18px;margin:8px 0;text-align:center}
 .dt.on{background:linear-gradient(#ffe266,#e69100);color:#3a1a00}
 input{-webkit-user-select:text;user-select:text}
 #auth{align-items:center;justify-content:center}
-#aBox{width:min(90vw,360px);display:flex;flex-direction:column;gap:12px;padding:20px;background:linear-gradient(#2a62b8,#16376f);border:4px solid #000;border-radius:18px;box-shadow:0 8px 0 #0006}
+#aBox{width:min(90%,360px);display:flex;flex-direction:column;gap:12px;padding:20px;background:linear-gradient(#2a62b8,#16376f);border:4px solid #000;border-radius:18px;box-shadow:0 8px 0 #0006}
 #aBox .logo{font-size:34px;text-align:center}
 #aBox input{width:100%;padding:13px;font-size:17px;border:3px solid #000;border-radius:12px;background:#fff;color:#111;font-weight:700}
 .tabs{display:flex;gap:6px}
@@ -101,15 +101,13 @@ input{-webkit-user-select:text;user-select:text}
 #lmStay,#lmGo{padding:13px;font-size:18px;border:3px solid #000;border-radius:14px;box-shadow:0 5px 0 #0007}
 #lmStay{background:linear-gradient(#7f7,#2a9a3a)}#lmGo{background:linear-gradient(#e0503a,#a01e10)}
 #game{background:#0a2a5c;align-items:center}
-#hud{width:var(--cw,100%);display:flex;align-items:center;gap:8px;padding:6px 4px}
 #tm{padding:6px 12px;font-size:18px;background:linear-gradient(#1c4f9a,#0c2c5e);border:3px solid #000;border-radius:12px;white-space:nowrap}
-#lbl{flex:1;min-width:0;text-align:center;font-size:14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 #back{width:44px;height:40px;font-size:20px;background:linear-gradient(#3fa0ff,#1560c0);border:3px solid #000;border-radius:10px;box-shadow:0 3px 0 #0007}
 #cw{width:var(--cw,100%);flex:1;min-height:0;display:flex;align-items:center;justify-content:center}
 #cv{display:block;touch-action:none;border:3px solid #000;border-bottom:0;border-radius:14px 14px 0 0}
 #tray{width:var(--cw,100%);padding:10px 10px calc(var(--sb) + 10px);background:repeating-linear-gradient(90deg,#8d5d30 0 20px,#7f5329 20px 40px);border:4px solid #1a0f06;border-radius:0 0 16px 16px;box-shadow:inset 0 3px 0 #b27d46}
-#hand{display:flex;gap:8px;justify-content:center;padding:6px 6px 14px}
-#hand .gc{flex:1;min-width:0;max-width:96px;cursor:pointer;touch-action:none}
+#hand{display:flex;gap:8px;justify-content:center;padding:4px 4px 12px}
+#hand .gc{flex:1;min-width:0;max-width:80px;cursor:pointer;touch-action:none}
 #hand .gc b{font-size:clamp(30px,10vw,46px)}
 #hand .gc span{display:none}
 #hand .gc .el{top:auto;bottom:-9px;left:-9px;width:28px;height:28px;line-height:24px;font-size:16px}
@@ -123,9 +121,24 @@ input{-webkit-user-select:text;user-select:text}
 #en{position:absolute;left:22px;top:0;line-height:18px;font-size:19px;z-index:2}
 .lvb{position:absolute;top:4px;right:4px;font-style:normal;font-size:11px;line-height:1}
 .price.up{background:linear-gradient(#7fe07f,#2a9a3a)}
+/* ---------- Handy-Box: alles läuft in einem hochformatigen Rahmen ---------- */
+html,body{background:#050d1c}
+body{display:flex;align-items:center;justify-content:center}
+#app{position:relative;flex:none;height:calc(100vh - 24px);height:calc(100dvh - 24px);max-width:calc(100vw - 24px);aspect-ratio:9/16;border-radius:46px;border:4px solid #0a1a2c;overflow:hidden;background:#0b2350;box-shadow:0 0 0 3px #1c3a5c,0 20px 60px #000c}
+.screen{padding:18px 6px 12px}
+#hud{position:absolute;top:20px;left:0;right:0;z-index:5;display:flex;justify-content:space-between;align-items:flex-start;padding:0 22px;pointer-events:none}
+#hl{display:flex;flex-direction:column;gap:4px;align-items:flex-start}
+#lbl{font-size:12px;max-width:130px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#back{pointer-events:auto}
+@media (max-aspect-ratio:3/5){
+  #app{width:100vw;height:100vh;height:100dvh;max-width:none;aspect-ratio:auto;border:0;border-radius:0;box-shadow:none}
+  .screen{padding:var(--st) 0 0}
+  #hud{top:calc(var(--st) + 6px);padding:0 8px}
+}
 </style>
 </head>
 <body>
+<div id="app">
 
 <div id="home" class="screen">
   <div id="top">
@@ -157,8 +170,8 @@ input{-webkit-user-select:text;user-select:text}
 </div>
 
 <div id="game" class="screen">
-  <div id="hud"><div id="tm" class="o">🕐 1:30</div><div id="lbl" class="o"></div><button id="back">🏳️</button></div>
-  <div id="cw"><canvas id="cv" width="720" height="1080"></canvas></div>
+  <div id="hud"><div id="hl"><div id="tm" class="o">🕐 1:30</div><div id="lbl" class="o"></div></div><button id="back">🏳️</button></div>
+  <div id="cw"><canvas id="cv" width="720" height="960"></canvas></div>
   <div id="tray">
     <div id="hand"></div>
     <div id="erow"><i id="drop"></i><div id="eb"><div id="ef"></div><span id="en" class="o">5</span></div></div>
@@ -208,6 +221,7 @@ input{-webkit-user-select:text;user-select:text}
 </div>
 
 <div id="toast" class="o"></div>
+</div>
 <script src="script.js"></script>
 </body>
 </html>
