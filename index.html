@@ -61,37 +61,6 @@ h3{font-size:18px;margin:8px 0;text-align:center}
 .nb.on{background:linear-gradient(#ffe266,#e69100);transform:translateY(-5px);color:#fff;box-shadow:0 4px 0 #0006}
 
 /* ---------- GAME ---------- */
-#game{background:#071a3d}
-#hud{display:flex;align-items:center;gap:10px;padding:6px 8px}
-#back{width:44px;height:36px;font-size:16px;background:linear-gradient(#e0503a,#a01e10);border:3px solid #000;border-radius:10px}
-#lbl{flex:1;text-align:center;font-size:14px;background:#0008;border:2px solid #000;border-radius:10px;padding:6px}
-#cw{flex:1;min-height:0;display:flex;align-items:center;justify-content:center}
-#cv{display:block;touch-action:none;border:3px solid #000;border-radius:8px;touch-action:none}
-#tray{display:grid;grid-template-columns:62px 1fr;gap:2px 8px;align-items:end;padding:8px 8px calc(var(--sb) + 6px);background:linear-gradient(#5a3a1e,#3a2210);border-top:5px solid #2a180a;box-shadow:0 -4px 12px #0009}
-#nxt{display:flex;flex-direction:column;align-items:center;justify-content:flex-end;gap:3px}
-#nxt small{font-size:12px}
-#next{min-height:60px;display:flex;align-items:flex-end}
-#next .gc{width:46px;flex:none;box-shadow:inset 0 0 0 2px var(--c),0 2px 0 #0007}
-#next .gc b{font-size:24px}#next .gc span,#next .el{display:none}
-#nsec{font-size:19px;line-height:1;margin-bottom:2px}
-#board{min-width:0;background:repeating-linear-gradient(90deg,#8d5d30 0 18px,#7f5329 18px 36px);border:4px solid #2a180a;border-radius:12px;padding:10px 8px 12px;box-shadow:inset 0 3px 0 #b27d46,0 3px 0 #0006}
-#hand{display:flex;gap:7px;justify-content:center}
-#hand .gc{flex:1;min-width:0;max-width:92px;cursor:pointer;touch-action:none}
-#hand .gc b{font-size:clamp(30px,10vw,46px)}
-#hand .gc span{display:none}
-#hand .gc .el{top:auto;bottom:-8px;left:-8px;width:27px;height:27px;line-height:23px;font-size:16px}
-#hand .gc.sel{transform:translateY(-12px) scale(1.07);box-shadow:inset 0 0 0 3px #ffd24a,0 0 22px #ffd24a}
-#hand .gc.off{filter:grayscale(.8) brightness(.55)}
-#edrop{display:flex;flex-direction:column;align-items:center;line-height:1;padding-bottom:2px}
-#drop{width:32px;height:32px;margin:4px 0 6px;background:radial-gradient(circle at 35% 35%,#f1a6ff,#9a22d0 70%);border:3px solid #000;border-radius:0 50% 50% 50%;transform:rotate(-45deg);display:flex;align-items:center;justify-content:center;box-shadow:0 0 10px #c050ff}
-#drop b{transform:rotate(45deg);font-size:19px}
-#et{font-size:11px}
-#eb{position:relative;align-self:center;height:22px;margin-bottom:6px;background:#1a0a30;border:3px solid #000;border-radius:11px}
-#ef{height:100%;width:50%;background:linear-gradient(#f7a6ff,#b030e0 60%,#7a14b0);border-radius:8px;transition:width .15s}
-#eb::after{content:'';position:absolute;inset:0;border-radius:8px;pointer-events:none;background:repeating-linear-gradient(90deg,transparent 0 calc(10% - 2px),#0007 calc(10% - 2px) 10%)}
-#drop{position:absolute;left:-26px;top:-9px;width:36px;height:38px;z-index:2;display:flex;align-items:center;justify-content:center;font-style:normal;font-size:30px}
-#drop b{position:absolute;font-size:15px;top:12px}
-#et{position:absolute;right:8px;top:0;font-size:12px;line-height:18px;z-index:2}
 #miniDeck .gc span{display:none}#miniDeck .gc b{font-size:22px}#miniDeck .gc{min-width:0}
 
 /* ---------- OVERLAYS ---------- */
@@ -131,6 +100,29 @@ input{-webkit-user-select:text;user-select:text}
 #lmT{font-size:16px;line-height:1.4}
 #lmStay,#lmGo{padding:13px;font-size:18px;border:3px solid #000;border-radius:14px;box-shadow:0 5px 0 #0007}
 #lmStay{background:linear-gradient(#7f7,#2a9a3a)}#lmGo{background:linear-gradient(#e0503a,#a01e10)}
+#game{background:#0a2a5c;align-items:center}
+#hud{width:var(--cw,100%);display:flex;align-items:center;gap:8px;padding:6px 4px}
+#tm{padding:6px 12px;font-size:18px;background:linear-gradient(#1c4f9a,#0c2c5e);border:3px solid #000;border-radius:12px;white-space:nowrap}
+#lbl{flex:1;min-width:0;text-align:center;font-size:14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#back{width:44px;height:40px;font-size:20px;background:linear-gradient(#3fa0ff,#1560c0);border:3px solid #000;border-radius:10px;box-shadow:0 3px 0 #0007}
+#cw{width:var(--cw,100%);flex:1;min-height:0;display:flex;align-items:center;justify-content:center}
+#cv{display:block;touch-action:none;border:3px solid #000;border-bottom:0;border-radius:14px 14px 0 0}
+#tray{width:var(--cw,100%);padding:10px 10px calc(var(--sb) + 10px);background:repeating-linear-gradient(90deg,#8d5d30 0 20px,#7f5329 20px 40px);border:4px solid #1a0f06;border-radius:0 0 16px 16px;box-shadow:inset 0 3px 0 #b27d46}
+#hand{display:flex;gap:8px;justify-content:center;padding:6px 6px 14px}
+#hand .gc{flex:1;min-width:0;max-width:96px;cursor:pointer;touch-action:none}
+#hand .gc b{font-size:clamp(30px,10vw,46px)}
+#hand .gc span{display:none}
+#hand .gc .el{top:auto;bottom:-9px;left:-9px;width:28px;height:28px;line-height:24px;font-size:16px}
+#hand .gc.sel{transform:translateY(-12px) scale(1.07);box-shadow:inset 0 0 0 3px #ffd24a,0 0 22px #ffd24a}
+#hand .gc.off{filter:grayscale(.8) brightness(.55)}
+#erow{position:relative;display:flex;align-items:center;padding-left:14px}
+#drop{position:absolute;left:2px;top:50%;margin-top:-16px;z-index:3;width:28px;height:28px;background:radial-gradient(circle at 35% 35%,#f1a6ff,#9a22d0 70%);border:3px solid #000;border-radius:0 50% 50% 50%;transform:rotate(-45deg);box-shadow:0 0 10px #c050ff}
+#eb{position:relative;flex:1;height:24px;background:#2a0a40;border:3px solid #000;border-radius:12px;overflow:hidden}
+#ef{height:100%;width:50%;background:linear-gradient(#f7a6ff,#b030e0 60%,#7a14b0);transition:width .15s}
+#eb::after{content:'';position:absolute;inset:0;pointer-events:none;background:repeating-linear-gradient(90deg,transparent 0 calc(10% - 2px),#0007 calc(10% - 2px) 10%)}
+#en{position:absolute;left:22px;top:0;line-height:18px;font-size:19px;z-index:2}
+.lvb{position:absolute;top:4px;right:4px;font-style:normal;font-size:11px;line-height:1}
+.price.up{background:linear-gradient(#7fe07f,#2a9a3a)}
 </style>
 </head>
 <body>
@@ -165,13 +157,11 @@ input{-webkit-user-select:text;user-select:text}
 </div>
 
 <div id="game" class="screen">
-  <div id="hud"><button id="back">◀</button><div id="lbl" class="o"></div></div>
+  <div id="hud"><div id="tm" class="o">🕐 1:30</div><div id="lbl" class="o"></div><button id="back">🏳️</button></div>
   <div id="cw"><canvas id="cv" width="720" height="1080"></canvas></div>
   <div id="tray">
-    <div id="nxt"><small class="o" id="nxtl"></small><div id="next"></div><b id="nsec" class="o"></b></div>
-    <div id="board"><div id="hand"></div></div>
-    <div id="edrop"><i id="drop"><b id="en" class="o">5</b></i><span id="et" class="o">Max: 10</span></div>
-    <div id="eb"><div id="ef"></div></div>
+    <div id="hand"></div>
+    <div id="erow"><i id="drop"></i><div id="eb"><div id="ef"></div><span id="en" class="o">5</span></div></div>
   </div>
 </div>
 
