@@ -1,425 +1,802 @@
-// ===================== ARENA CLASH =====================
-// An original lane-based card battler: charge your elixir,
-// deploy troops, and knock down the enemy towers.
-// =========================================================
+'use strict';
+// =================================================================
+//  ARENA CLASH — Mobile Edition
+//  Deck (8) · Shop · 12 Arenen · Deutsch/Englisch · Touch & Drag
+// =================================================================
+const $ = id => document.getElementById(id);
+const KEY = 'arenaClash_v1';          // Gast-Spielstand
+const USERS = 'arenaClash_users', SESSION = 'arenaClash_session', LANGK = 'arenaClash_lang';
+const BADGES = { '005x5': '👾' };      // Spezial-Emoji für bestimmte Accounts
+const STARTERS = ['knight', 'archer', 'goblin'];
+const PEN_XP = 25, PEN_COINS = 20;     // Strafe fürs Verlassen eines Kampfes
+const lsGet = k => { try { return JSON.parse(localStorage.getItem(k)); } catch (e) { return null; } };
+const lsSet = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} };
 
-const canvas = document.getElementById('game');
-const ctx = canvas.getContext('2d');
-const W = canvas.width, H = canvas.height;
-
-const elixirBar = document.getElementById('elixirBar');
-const elixirLabel = document.getElementById('elixirLabel');
-const handEl = document.getElementById('hand');
-const overlay = document.getElementById('overlay');
-const overlayText = document.getElementById('overlayText');
-const restartBtn = document.getElementById('restartBtn');
-const hint = document.getElementById('hint');
-
-const MID_Y = H / 2;
-const LANES_X = [110, 290]; // left lane, right lane center-x guides
-
-// ---------- Card / unit definitions (original names & stats) ----------
-const CARD_DB = [
-  { id: 'swordsman', name: 'Swordsman', icon: '🗡️', cost: 3, hp: 220, dmg: 30, range: 22, speed: 40, atkSpeed: 1.0, radius: 12, color: '#e0e0e0', count: 1 },
-  { id: 'bowman',    name: 'Bowman',    icon: '🏹', cost: 3, hp: 90,  dmg: 22, range: 90, speed: 45, atkSpeed: 0.9, radius: 10, color: '#8be08b', count: 2, spread: 14 },
-  { id: 'brute',     name: 'Brute',     icon: '🪓', cost: 5, hp: 520, dmg: 55, range: 24, speed: 30, atkSpeed: 1.4, radius: 16, color: '#e08b5a', count: 1 },
-  { id: 'scout',     name: 'Scout',     icon: '🐎', cost: 2, hp: 130, dmg: 18, range: 20, speed: 75, atkSpeed: 0.8, radius: 10, color: '#5ab6e0', count: 1 },
-  { id: 'firebolt',  name: 'Fire Bolt', icon: '🔥', cost: 4, spell: true, dmg: 140, radius: 55, color: '#ff6a3d' },
-  { id: 'shieldbot', name: 'Shieldbot', icon: '🛡️', cost: 4, hp: 260, dmg: 14, range: 20, speed: 25, atkSpeed: 1.0, radius: 13, color: '#c9b458', count: 1 },
-];
-
-function cardById(id) { return CARD_DB.find(c => c.id === id); }
-
-// ---------- Game state ----------
-let state;
-
-function freshState() {
-  return {
-    running: true,
-    time: 0,
-    player: {
-      elixir: 5,
-      hand: [],
-      deck: shuffle(CARD_DB.map(c => c.id)),
-      selected: null,
-      towers: makeTowers('player'),
-    },
-    enemy: {
-      elixir: 5,
-      deck: shuffle(CARD_DB.map(c => c.id)),
-      timer: 2.5,
-      towers: makeTowers('enemy'),
-    },
-    units: [],       // troops on field
-    effects: [],      // transient visuals (spell blasts, hits)
-    nextId: 1,
-  };
+let LANG = localStorage.getItem(LANGK) || ((navigator.language || 'de').toLowerCase().startsWith('de') ? 'de' : 'en');
+let USER = null;          // { key, name, guest }
+let authMode = 'login';
+function fresh() {
+  return { level: 1, xp: 0, coins: 200, wins: 0, losses: 0, trophies: 0, battle: 0,
+    owned: STARTERS.slice(), decks: [STARTERS.slice(), [], [], [], []], di: 0, arena: 0 };
+}
+let S = fresh();
+const saveKey = () => USER.guest ? KEY : 'arenaClash_u_' + USER.key;
+const save = () => { if (USER) lsSet(saveKey(), S); };
+const dk = () => S.decks[S.di];
+function loadSave() {
+  const s = lsGet(saveKey()), f = fresh();
+  if (s && !s.decks) s.decks = [s.deck || STARTERS.slice(), [], [], [], []];
+  return s ? { ...f, ...s } : f;
 }
 
-function shuffle(arr) {
-  const a = arr.slice();
-  for (let i = a.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [a[i], a[j]] = [a[j], a[i]];
+// ---------- Sprachen ----------
+const L = {
+  de: {
+    battle: 'KAMPF', battleNav: 'Kampf', shop: 'Shop', cards: 'Karten', arenas: 'Arenen', cont: '▶ Weiter',
+    settings: '⚙️ Einstellungen', lang: 'Sprache', reset: 'Fortschritt löschen', close: 'Schließen',
+    resetQ: 'Wirklich den gesamten Fortschritt löschen?', arena: 'Arena', next: 'Nächste:',
+    deck: 'Dein Deck', coll: 'Sammlung', hint: 'Tippe eine Karte, um sie ins Deck zu legen oder zu entfernen (max. 8, mind. 4 zum Spielen)',
+    deckFull: 'Deck ist voll (max. 8)', deckMin: 'Mindestens 1 Karte im Deck!', need4: 'Du brauchst mind. 4 Karten im Deck!',
+    buyFirst: 'Erst im Shop kaufen!', owned: '✓ Besitzt', noCoins: 'Zu wenig Coins!', bought: 'freigeschaltet!',
+    noElix: 'Zu wenig Elixier!', onlyHalf: 'Nur in deiner Hälfte!', win: '🏆 Sieg!', loss: '💀 Niederlage', draw: '🤝 Unentschieden',
+    lvlUp: '⭐ Level {n} erreicht!', active: 'AKTIV', pick: 'WÄHLEN', lvl: 'Level', reward: 'Belohnung', switched: 'Arena gewechselt!'
+  },
+  en: {
+    battle: 'BATTLE', battleNav: 'Battle', shop: 'Shop', cards: 'Cards', arenas: 'Arenas', cont: '▶ Continue',
+    settings: '⚙️ Settings', lang: 'Language', reset: 'Reset progress', close: 'Close',
+    resetQ: 'Really delete all progress?', arena: 'Arena', next: 'Next:',
+    deck: 'Your Deck', coll: 'Collection', hint: 'Tap a card to add/remove it (max. 8, at least 4 to play)',
+    deckFull: 'Deck is full (max. 8)', deckMin: 'Keep at least 1 card in your deck!', need4: 'You need at least 4 cards in your deck!',
+    buyFirst: 'Buy it in the shop first!', owned: '✓ Owned', noCoins: 'Not enough coins!', bought: 'unlocked!',
+    noElix: 'Not enough elixir!', onlyHalf: 'Only on your side!', win: '🏆 Victory!', loss: '💀 Defeat', draw: '🤝 Draw',
+    lvlUp: '⭐ Reached level {n}!', active: 'ACTIVE', pick: 'SELECT', lvl: 'Level', reward: 'Reward', switched: 'Arena switched!'
   }
-  return a;
-}
-
-function makeTowers(side) {
-    const isPlayer = side === 'player';
-    const kingY = isPlayer ? H - 40 : 40;
-    const princessY = isPlayer ? H - 130 : 130;
-    return [
-    { id: side + '-king', side, kind: 'king', x: W / 2, y: kingY, hp: 1400, maxHp: 1400, dmg: 50, range: 90, atkSpeed: 1.0, cd: 0, active: isPlayer ? false : false, alive: true },
-    { id: side + '-left', side, kind: 'princess', x: LANES_X[0], y: princessY, hp: 800, maxHp: 800, dmg: 40, range: 100, atkSpeed: 0.8, cd: 0, active: true, alive: true },
-    { id: side + '-right', side, kind: 'princess', x: LANES_X[1], y: princessY, hp: 800, maxHp: 800, dmg: 40, range: 100, atkSpeed: 0.8, cd: 0, active: true, alive: true },
-  ];
-}
-
-function drawHandFromDeck(p) {
-  while (p.hand.length < 4) {
-    if (p.deck.length === 0) p.deck = shuffle(CARD_DB.map(c => c.id));
-    p.hand.push(p.deck.pop());
-  }
-}
-
-function init() {
-  state = freshState();
-  drawHandFromDeck(state.player);
-  overlay.style.display = 'none';
-  renderHand();
-  requestAnimationFrame(loop);
-}
-
-// ---------- Hand UI ----------
-function renderHand() {
-  handEl.innerHTML = '';
-  state.player.hand.forEach((cardId, idx) => {
-    const card = cardById(cardId);
-    const div = document.createElement('div');
-    div.className = 'card' + (state.player.selected === idx ? ' selected' : '') + (card.cost > state.player.elixir ? ' disabled' : '');
-    div.innerHTML = `
-      <div class="cost">${card.cost}</div>
-      <div class="icon">${card.icon}</div>
-      <div class="name">${card.name}</div>
-    `;
-    div.onclick = () => {
-      if (card.cost > state.player.elixir) return;
-      state.player.selected = (state.player.selected === idx) ? null : idx;
-      renderHand();
-      hint.textContent = state.player.selected !== null
-        ? 'Tap your half of the field to deploy'
-        : 'Tap a card, then tap your half of the field to deploy';
-    };
-    handEl.appendChild(div);
-  });
-}
-
-canvas.addEventListener('click', (e) => {
-  if (!state.running) return;
-  if (state.player.selected === null) return;
-  const rect = canvas.getBoundingClientRect();
-  const x = (e.clientX - rect.left) * (W / rect.width);
-  const y = (e.clientY - rect.top) * (H / rect.height);
-  if (y < MID_Y + 30) { hint.textContent = "You can only deploy on your half!"; return; }
-
-  const idx = state.player.selected;
-  const cardId = state.player.hand[idx];
-  const card = cardById(cardId);
-  if (card.cost > state.player.elixir) return;
-
-  playCard('player', card, x, y);
-  state.player.elixir -= card.cost;
-  state.player.hand.splice(idx, 1);
-  drawHandFromDeck(state.player);
-  state.player.selected = null;
-  renderHand();
-  hint.textContent = 'Tap a card, then tap your half of the field to deploy';
+};
+Object.assign(L.de, {
+  need3: 'Du brauchst mind. 3 Karten im Deck!',
+  hint: 'Tippe eine Karte, um sie ins Deck zu legen oder zu entfernen (max. 8, mind. 3 zum Spielen)',
+  login: 'Anmelden', register: 'Registrieren', username: 'Benutzername', password: 'Passwort', password2: 'Passwort wiederholen',
+  guest: '👤 Als Gast spielen', logout: 'Abmelden / Konto wechseln', guestName: 'Gast',
+  errName: 'Name: 3–16 Zeichen (Buchstaben, Zahlen, _ . -)', errPw: 'Passwort: mind. 4 Zeichen', errExists: 'Name ist schon vergeben',
+  errBad: 'Name oder Passwort falsch', errMatch: 'Passwörter stimmen nicht überein',
+  leaveT: '⚠️ Kampf verlassen?',
+  leaveW: 'Wenn du jetzt gehst, zählt der Kampf als Niederlage: du verlierst {x} XP, {c} Münzen und 15 Trophäen.',
+  stay: '▶ Weiterkämpfen', leaveGo: 'Verlassen (Niederlage)',
+  crashPen: 'Kampf abgebrochen: Niederlage! −{x} XP, −{c} 🪙'
 });
-
-function playCard(side, card, x, y) {
-  if (card.spell) {
-    state.effects.push({ type: 'blast', x, y, r: card.radius, t: 0.4, color: card.color });
-    const targets = state.units.filter(u => u.side !== side && dist(u.x, u.y, x, y) <= card.radius);
-    targets.forEach(u => damageUnit(u, card.dmg));
-    const enemyTowers = (side === 'player' ? state.enemy.towers : state.player.towers);
-    enemyTowers.forEach(t => { if (t.alive && dist(t.x, t.y, x, y) <= card.radius) damageTower(t, card.dmg); });
-    return;
-  }
-  const count = card.count || 1;
-  for (let i = 0; i < count; i++) {
-    const offset = count > 1 ? (i - (count - 1) / 2) * (card.spread || 20) : 0;
-    state.units.push(makeUnit(side, card, x + offset, y));
-  }
+Object.assign(L.en, {
+  need3: 'You need at least 3 cards in your deck!',
+  hint: 'Tap a card to add/remove it (max. 8, at least 3 to play)',
+  login: 'Log in', register: 'Register', username: 'Username', password: 'Password', password2: 'Repeat password',
+  guest: '👤 Play as guest', logout: 'Log out / switch account', guestName: 'Guest',
+  errName: 'Name: 3–16 characters (letters, numbers, _ . -)', errPw: 'Password: at least 4 characters', errExists: 'Name is already taken',
+  errBad: 'Wrong username or password', errMatch: 'Passwords do not match',
+  leaveT: '⚠️ Leave battle?',
+  leaveW: 'If you leave now, the battle counts as a defeat: you lose {x} XP, {c} coins and 15 trophies.',
+  stay: '▶ Keep fighting', leaveGo: 'Leave (defeat)',
+  crashPen: 'Battle abandoned: defeat! −{x} XP, −{c} 🪙'
+});
+const t = k => L[LANG][k] || k;
+const li = () => (LANG === 'de' ? 0 : 1);
+function applyLang() {
+  document.documentElement.lang = LANG;
+  document.querySelectorAll('[data-t]').forEach(e => e.textContent = t(e.dataset.t));
+  document.querySelectorAll('.lg').forEach(b => b.classList.toggle('on', b.dataset.l === LANG));
+  $('uN').placeholder = t('username'); $('uP').placeholder = t('password'); $('uP2').placeholder = t('password2');
+  $('aGo').textContent = t(authMode);
 }
 
-function makeUnit(side, card, x, y) {
-  return {
-    id: state.nextId++,
-    side,
-    cardId: card.id,
-    name: card.name,
-    x, y,
-    hp: card.hp,
-    maxHp: card.hp,
-    dmg: card.dmg,
-    range: card.range,
-    speed: card.speed,
-    atkSpeed: card.atkSpeed,
-    radius: card.radius,
-    color: card.color,
-    cd: 0,
-    target: null,
+// ---------- Karten (c=Kosten, n=Anzahl, fly=fliegt, tOnly=nur Türme) ----------
+const CARDS = {
+  skeleton: { c: 1, n: 3, hp: 70,   d: 26,  sp: 1.7,  r: 18,  as: .6,  col: '#e8e8e8', ic: '💀', rad: 9,  p: 0,   rg: 0, nm: ['Skelette', 'Skeletons'] },
+  goblin:   { c: 2, n: 2, hp: 140,  d: 30,  sp: 1.6,  r: 20,  as: .7,  col: '#88ff22', ic: '👺', rad: 10, p: 0,   rg: 0, nm: ['Goblins', 'Goblins'] },
+  knight:   { c: 3, n: 1, hp: 380,  d: 55,  sp: 1.15, r: 26,  as: 1.0, col: '#4488ff', ic: '🛡️', rad: 14, p: 0,   rg: 0, nm: ['Ritter', 'Knight'] },
+  archer:   { c: 3, n: 1, hp: 220,  d: 32,  sp: 1.05, r: 190, as: 1.1, col: '#44ff88', ic: '🏹', rad: 12, p: 0,   rg: 1, nm: ['Bogenschütze', 'Archer'] },
+  bomber:   { c: 3, n: 1, hp: 190,  d: 70,  sp: .95,  r: 120, as: 1.5, col: '#ff7755', ic: '💣', rad: 12, p: 0,   rg: 1, nm: ['Bomber', 'Bomber'] },
+  musketeer:{ c: 4, n: 1, hp: 250,  d: 60,  sp: .9,   r: 200, as: 1.0, col: '#ffcc66', ic: '🎯', rad: 13, p: 0,   rg: 1, nm: ['Musketier', 'Musketeer'] },
+  valkyrie: { c: 4, n: 1, hp: 600,  d: 55,  sp: 1.0,  r: 28,  as: 1.1, col: '#ff9966', ic: '🪓', rad: 14, p: 250, rg: 0, nm: ['Walküre', 'Valkyrie'] },
+  hog:      { c: 4, n: 1, hp: 520,  d: 80,  sp: 1.9,  r: 24,  as: 1.5, col: '#cc8844', ic: '🐗', rad: 15, p: 350, rg: 0, tOnly: 1, nm: ['Schweinereiter', 'Hog Rider'] },
+  mage:     { c: 4, n: 1, hp: 260,  d: 75,  sp: .9,   r: 155, as: 1.4, col: '#cc44ff', ic: '🧙', rad: 13, p: 300, rg: 1, nm: ['Magier', 'Mage'] },
+  dragon:   { c: 4, n: 1, hp: 400,  d: 70,  sp: 1.1,  r: 110, as: 1.3, col: '#ff6633', ic: '🐲', rad: 15, p: 400, rg: 1, fly: 1, nm: ['Baby-Drache', 'Baby Dragon'] },
+  giant:    { c: 5, n: 1, hp: 1200, d: 95,  sp: .65,  r: 28,  as: 1.5, col: '#ff8844', ic: '👹', rad: 18, p: 300, rg: 0, tOnly: 1, nm: ['Riese', 'Giant'] },
+  prince:   { c: 5, n: 1, hp: 650,  d: 120, sp: 1.3,  r: 28,  as: 1.3, col: '#4488dd', ic: '🐴', rad: 16, p: 450, rg: 0, nm: ['Prinz', 'Prince'] },
+  wizard:   { c: 5, n: 1, hp: 200,  d: 110, sp: .85,  r: 175, as: 1.6, col: '#22ddff', ic: '🧙‍♂️', rad: 13, p: 500, rg: 1, nm: ['Zauberer', 'Wizard'] },
+  pekka:    { c: 7, n: 1, hp: 1500, d: 260, sp: .7,   r: 28,  as: 1.8, col: '#6677aa', ic: '🤖', rad: 18, p: 800, rg: 0, nm: ['P.E.K.K.A', 'P.E.K.K.A'] },
+  minion:     { c: 3, n: 3, hp: 90,   d: 35,  sp: 1.8,  r: 20,  as: .9,  col: '#6aa0ff', ic: '🦇', rad: 10, p: 200, rg: 0, fly: 1, nm: ['Wichte', 'Minions'] },
+  lumberjack: { c: 4, n: 1, hp: 420,  d: 110, sp: 1.5,  r: 24,  as: 1.0, col: '#cc5522', ic: '🪵', rad: 14, p: 380, rg: 0, nm: ['Holzfäller', 'Lumberjack'] },
+  electro:    { c: 4, n: 1, hp: 240,  d: 50,  sp: .95,  r: 170, as: .6,  col: '#66ddff', ic: '⚡', rad: 12, p: 420, rg: 1, nm: ['Elektro-Magier', 'Electro Mage'] },
+  barbarian:  { c: 5, n: 3, hp: 300,  d: 50,  sp: 1.2,  r: 24,  as: 1.1, col: '#ffb04a', ic: '🧔', rad: 12, p: 350, rg: 0, nm: ['Barbaren', 'Barbarians'] },
+  witch:      { c: 5, n: 1, hp: 300,  d: 60,  sp: .9,   r: 160, as: 1.1, col: '#bb66ff', ic: '🧙‍♀️', rad: 13, p: 550, rg: 1, nm: ['Hexe', 'Witch'] },
+  golem:      { c: 8, n: 1, hp: 2600, d: 130, sp: .55,  r: 30,  as: 1.8, col: '#998877', ic: '🗿', rad: 20, p: 900, rg: 0, tOnly: 1, nm: ['Golem', 'Golem'] }
+};
+// rv = Flussfarben, th = Rasterfarben
+const ARENAS = [
+  { n: ['Trainingslager', 'Training Camp'],    ic: '🏟️', lv: 1,  rw: 30,  th: ['#6aa84f', '#62a049'] },
+  { n: ['Goblin-Stadion', 'Goblin Stadium'],   ic: '👺', lv: 2,  rw: 45,  th: ['#7aa83a', '#719e34'] },
+  { n: ['Knochengrube', 'Bone Pit'],           ic: '💀', lv: 3,  rw: 60,  th: ['#6a6a7a', '#62626f'] },
+  { n: ['Barbaren-Arena', 'Barbarian Arena'],  ic: '⚔️', lv: 4,  rw: 75,  th: ['#b08a4a', '#a68242'] },
+  { n: ['P.E.K.K.A-Halle', 'P.E.K.K.A Hall'],  ic: '🤖', lv: 5,  rw: 90,  th: ['#5a6a8a', '#526282'] },
+  { n: ['Königsarena', 'Royal Arena'],         ic: '👑', lv: 6,  rw: 105, th: ['#9a4a6a', '#904464'] },
+  { n: ['Eispalast', 'Frozen Peak'],           ic: '❄️', lv: 7,  rw: 120, th: ['#bfe3ee', '#b2d9e6'], rv: ['#7fd0f0', '#4aa6d8'] },
+  { n: ['Vulkankrater', 'Volcano Crater'],     ic: '🌋', lv: 8,  rw: 140, th: ['#7a4a38', '#6e4232'], rv: ['#ff8a2a', '#c8421a'] },
+  { n: ['Geisterschloss', 'Haunted Castle'],   ic: '👻', lv: 10, rw: 160, th: ['#4a4a6a', '#424262'], rv: ['#5a4aa0', '#3a2a78'] },
+  { n: ['Dracheninsel', 'Dragon Isle'],        ic: '🐲', lv: 12, rw: 185, th: ['#3f8a6a', '#378062'] },
+  { n: ['Himmelsfestung', 'Sky Fortress'],     ic: '☁️', lv: 15, rw: 210, th: ['#9ab6d8', '#8eacd0'], rv: ['#ddeeff', '#b0c8e8'] },
+  { n: ['Legendenarena', 'Legendary Arena'],   ic: '🏆', lv: 18, rw: 250, th: ['#c8aa4a', '#be9f42'], rv: ['#ffd24a', '#d89a10'] }
+];
+const xpFor = l => 100 + (l - 1) * 80;
+const cn = k => CARDS[k].nm[li()];
+const an = a => a.n[li()];
+
+// Spielstand bereinigen / alte Spielstände ergänzen
+function sanitize() {
+  S.owned = [...new Set([...STARTERS, ...S.owned.filter(k => CARDS[k])])];
+  S.decks = S.decks.slice(0, 5); while (S.decks.length < 5) S.decks.push([]);
+  S.decks = S.decks.map(d => d.filter(k => CARDS[k] && S.owned.includes(k)).slice(0, 8));
+  if (!(S.di >= 0 && S.di < 5)) S.di = 0;
+  if (dk().length < 3) S.decks[S.di] = S.owned.slice(0, 3);
+  if (!ARENAS[S.arena] || ARENAS[S.arena].lv > S.level) S.arena = 0;
+}
+
+// ---------- UI ----------
+function toast(m, err) {
+  const e = $('toast');
+  e.textContent = m;
+  e.className = 'o on' + (err ? ' err' : '');
+  clearTimeout(e._t);
+  e._t = setTimeout(() => e.className = 'o', 1700);
+}
+function screen(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('on'));
+  $(id).classList.add('on');
+}
+function cardHTML(k, cls, extra) {
+  const c = CARDS[k];
+  return `<div class="gc ${cls || ''}" data-k="${k}" style="--c:${c.col}"><i class="el">${c.c}</i><b>${c.ic}</b><span class="o">${cn(k)}</span>${extra || ''}</div>`;
+}
+function renderTop() {
+  $('lv').textContent = S.level;
+  $('xpf').style.width = Math.min(100, S.xp / xpFor(S.level) * 100) + '%';
+  $('xpt').textContent = S.xp + ' / ' + xpFor(S.level);
+  $('tr').textContent = S.trophies;
+  $('co').textContent = S.coins;
+}
+function renderBattle() {
+  const a = ARENAS[S.arena];
+  $('aName').textContent = a.ic + ' ' + an(a);
+  $('aSub').textContent = t('arena') + ' ' + (S.arena + 1);
+  $('scene').style.background = `radial-gradient(circle at 50% 60%,${a.th[0]},${a.th[1]} 55%,#0a1a10)`;
+  $('who').textContent = USER.guest ? '👤 ' + t('guestName') : (BADGES[USER.key] || '🙂') + ' ' + USER.name;
+  $('miniDeck').innerHTML = dk().map(k => cardHTML(k)).join('');
+}
+function renderCards() {
+  const d = dk();
+  let slots = d.map(k => cardHTML(k, 'in')).join('');
+  for (let i = d.length; i < 8; i++) slots += '<div class="empty"></div>';
+  const tabs = S.decks.map((x, i) => `<button class="dt${i === S.di ? ' on' : ''}" data-d="${i}">${i + 1}</button>`).join('');
+  $('v-cards').innerHTML =
+    `<h3 class="o">${t('deck')} ${S.di + 1} (${d.length}/8)</h3><div class="dtabs">${tabs}</div><div class="slots">${slots}</div>
+     <p class="hint">${t('hint')}</p>
+     <h3 class="o">${t('coll')}</h3>
+     <div class="grid">${Object.keys(CARDS).map(k => {
+       const own = S.owned.includes(k);
+       return cardHTML(k, (d.includes(k) ? 'in ' : '') + (own ? '' : 'lock'));
+     }).join('')}</div>`;
+}
+function renderShop() {
+  $('v-shop').innerHTML = `<h3 class="o">🛒 ${t('shop')}</h3><div class="grid" style="padding-bottom:12px">${
+    Object.keys(CARDS).map(k => {
+      const own = S.owned.includes(k);
+      return cardHTML(k, own ? 'in' : '', own
+        ? `<div class="price ok o">✓</div>`
+        : `<div class="price o">🪙 ${CARDS[k].p}</div>`);
+    }).join('')}</div>`;
+}
+function renderArenas() {
+  $('v-arena').innerHTML = `<h3 class="o">🏟️ ${t('arenas')}</h3>` + ARENAS.map((a, i) => {
+    const un = S.level >= a.lv, cur = S.arena === i;
+    const tag = cur ? `<div class="tag c o">${t('active')}</div>` : un ? `<div class="tag o" data-s="${i}">${t('pick')}</div>` : `<div class="tag l o">Lvl ${a.lv}</div>`;
+    return `<div class="ar ${cur ? 'cur' : un ? '' : 'lock'}"><i>${a.ic}</i><div><span class="o">${an(a)}</span><small>${t('lvl')} ${a.lv} · ${t('reward')} 🪙 ${a.rw}</small></div>${tag}</div>`;
+  }).join('');
+}
+function view(v) {
+  document.querySelectorAll('.view').forEach(e => e.classList.toggle('on', e.id === 'v-' + v));
+  document.querySelectorAll('.nb').forEach(b => b.classList.toggle('on', b.dataset.v === v));
+  ({ battle: renderBattle, cards: renderCards, shop: renderShop, arena: renderArenas })[v]();
+}
+function renderAll() {
+  applyLang(); renderTop();
+  view(document.querySelector('.nb.on').dataset.v);
+}
+
+$('v-cards').onclick = e => {
+  const tb = e.target.closest('[data-d]');
+  if (tb) { S.di = +tb.dataset.d; save(); return renderCards(); }
+  const el = e.target.closest('[data-k]'); if (!el) return;
+  const k = el.dataset.k, d = dk();
+  if (!S.owned.includes(k)) return toast(t('buyFirst'), true);
+  const i = d.indexOf(k);
+  if (i >= 0) { if (d.length <= 1) return toast(t('deckMin'), true); d.splice(i, 1); }
+  else { if (d.length >= 8) return toast(t('deckFull'), true); d.push(k); }
+  save(); renderCards();
+};
+$('v-shop').onclick = e => {
+  const el = e.target.closest('[data-k]'); if (!el) return;
+  const k = el.dataset.k, c = CARDS[k];
+  if (S.owned.includes(k)) return;
+  if (S.coins < c.p) return toast(t('noCoins'), true);
+  S.coins -= c.p; S.owned.push(k);
+  if (dk().length < 8) dk().push(k);
+  save(); renderTop(); renderShop();
+  toast('✅ ' + cn(k) + ' ' + t('bought'));
+};
+$('v-arena').onclick = e => {
+  const el = e.target.closest('[data-s]'); if (!el) return;
+  S.arena = +el.dataset.s; save(); renderArenas(); toast('🏟️ ' + t('switched'));
+};
+document.querySelectorAll('.nb').forEach(b => b.onclick = () => view(b.dataset.v));
+$('miniDeck').onclick = () => view('cards');
+$('gear').onclick = () => $('set').classList.add('on');
+$('cl').onclick = () => $('set').classList.remove('on');
+document.querySelectorAll('.lg').forEach(b => b.onclick = () => {
+  LANG = b.dataset.l; localStorage.setItem(LANGK, LANG);
+  if (USER) { renderAll(); refreshAcc(); } else applyLang();
+});
+$('rst').onclick = () => {
+  if (!confirm(t('resetQ'))) return;
+  S = fresh(); save(); $('set').classList.remove('on'); renderAll();
+};
+$('lo').onclick = () => { $('set').classList.remove('on'); logout(); };
+
+// =================================================================
+//  KAMPF
+// =================================================================
+const W = 720, H = 1080, RY = 540, RH = 76, BR = [180, 540], BW = 100, TIME = 90, SPD = 55;
+const BLUE = '#3a8bff', RED = '#ff4455';
+const TREES = [[34, 70], [690, 60], [30, 330], [692, 340], [30, 760], [692, 770], [36, 1030], [690, 1030], [30, 560], [692, 540]];
+const cv = $('cv'), cx = cv.getContext('2d');
+let G = null, raf = 0, last = 0, drag = null;
+
+const inR = y => Math.abs(y - RY) < RH / 2;
+const onB = x => BR.some(b => Math.abs(x - b) < BW / 2);
+const okPos = (x, y) => !inR(y) || onB(x);
+const rd = o => o.isT ? o.r : o.rad;
+const dst = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
+const nb = x => Math.abs(x - BR[0]) < Math.abs(x - BR[1]) ? BR[0] : BR[1];
+const rate = () => (G.time < 30 ? 2 : 1) * 0.6;   // Elixier/Sekunde (doppelt in den letzten 30 s)
+
+function shuffle(a) { for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; }
+function mkHand() { const d = shuffle(dk().slice()); return { hand: d.slice(0, 4), q: d.slice(4) }; }
+function cyc(h, i) { const k = h.hand[i]; h.q.push(k); h.hand[i] = h.q.shift(); return k; }
+
+function mkT(team, x, y, king) {
+  const hp = king ? 2400 * G.m : 1500 * G.m;
+  return { isT: 1, team, x, y, king, hp, maxhp: hp, r: king ? 44 : 36, dmg: (king ? 70 : 60) * G.m, cd: 1, dead: 0, act: !king, fl: 0 };
+}
+
+function start() {
+  if (dk().length < 3) return toast(t('need3'), true);
+  const ar = ARENAS[S.arena];
+  G = {
+    ar, i: S.arena, m: 1 + (S.level - 1) * .06,   // Bot hat dieselben Werte wie du
+    u: [], p: [], tw: [], fx: [], time: TIME, t: 0, pe: 5, ee: 5,
+    sel: -1, gh: null, over: 0, h: mkHand(), bo: mkHand(), mq: [], idle: 0, lblc: ''
   };
+  G.tw.push(mkT('e', 180, 200), mkT('e', 540, 200), mkT('e', 360, 100, 1),
+            mkT('p', 180, 880), mkT('p', 540, 880), mkT('p', 360, 980, 1));
+  drag = null;
+  S.battle = 1; save();     // Falls die Seite mitten im Kampf geschlossen wird, zählt das als Niederlage
+  $('over').classList.remove('on');
+  $('nxtl').textContent = t('next');
+  screen('game');
+  renderHand();
+  fit();
+  last = performance.now();
+  cancelAnimationFrame(raf);
+  raf = requestAnimationFrame(loop);
+}
+function leave() {
+  cancelAnimationFrame(raf); G = null; drag = null;
+  $('over').classList.remove('on');
+  screen('home'); renderTop(); renderBattle();
+}
+function fit() {
+  const w = $('cw');
+  const s = Math.min(w.clientWidth / W, w.clientHeight / H);
+  cv.style.width = W * s + 'px';
+  cv.style.height = H * s + 'px';
+}
+window.addEventListener('resize', () => { if (G) fit(); });
+
+// ---------- Hand (unten wie im Original, mit "Nächste"-Karte) ----------
+function renderHand() {
+  $('hand').innerHTML = G.h.hand.map(k => cardHTML(k)).join('');
+  $('next').innerHTML = G.h.q.length ? cardHTML(G.h.q[0]) : '';
+  $('nxt').style.visibility = G.h.q.length ? 'visible' : 'hidden';
+  [...$('hand').children].forEach((el, i) => {
+    el.addEventListener('pointerdown', ev => {
+      ev.preventDefault();
+      if (!G || G.over) return;
+      if (G.pe < CARDS[G.h.hand[i]].c) return toast(t('noElix'), true);
+      drag = { i, was: G.sel === i, moved: false };
+      G.sel = i;
+      refreshHand();
+      dragMove(ev);
+    });
+  });
+  refreshHand();
+}
+function refreshHand() {
+  [...$('hand').children].forEach((el, i) => {
+    const off = G.pe < CARDS[G.h.hand[i]].c;
+    el.classList.toggle('off', off);
+    el.classList.toggle('sel', G.sel === i && !off);
+  });
+  if (G.sel >= 0 && G.pe < CARDS[G.h.hand[G.sel]].c) G.sel = -1;
 }
 
-function dist(x1, y1, x2, y2) { return Math.hypot(x1 - x2, y1 - y2); }
+// Karte auf das Feld ziehen (Touch & Maus) oder antippen + Feld antippen
+function dragMove(ev) {
+  if (!drag || !G) return;
+  const r = cv.getBoundingClientRect();
+  const inside = ev.clientX >= r.left && ev.clientX <= r.right && ev.clientY >= r.top && ev.clientY <= r.bottom;
+  if (inside) {
+    drag.moved = true;
+    const off = ev.pointerType === 'touch' ? -70 : 0;   // Finger verdeckt sonst die Vorschau
+    G.gh = { x: (ev.clientX - r.left) * W / r.width, y: (ev.clientY - r.top) * H / r.height + off };
+  } else if (drag.moved) G.gh = null;
+}
+document.addEventListener('pointermove', dragMove);
+document.addEventListener('pointerup', ev => {
+  if (!drag || !G) return;
+  dragMove(ev);
+  const d = drag; drag = null;
+  if (G.over) return;
+  if (d.moved && G.gh) {
+    if (!canPlace(G.gh.x, G.gh.y)) { toast(t('onlyHalf'), true); G.gh = null; }
+    else place(d.i, G.gh.x, G.gh.y);
+  } else if (!d.moved && d.was) G.sel = -1;
+  refreshHand();
+});
+document.addEventListener('pointercancel', () => { drag = null; });
 
-// ---------- AI ----------
-function aiTick(dt) {
-  const ai = state.enemy;
-  ai.elixir = Math.min(10, ai.elixir + dt / 2.8);
-  ai.timer -= dt;
-  if (ai.timer <= 0) {
-    ai.timer = 2 + Math.random() * 2.5;
-    const affordable = ai.deck.filter(id => cardById(id).cost <= ai.elixir);
-    if (affordable.length > 0) {
-      const pick = affordable[Math.floor(Math.random() * affordable.length)];
-      const card = cardById(pick);
-      const lane = Math.random() < 0.5 ? LANES_X[0] : LANES_X[1];
-      const y = 90 + Math.random() * 60;
-      playCard('enemy', card, lane + (Math.random() * 30 - 15), y);
-      ai.elixir -= card.cost;
-      ai.deck.splice(ai.deck.indexOf(pick), 1);
-      if (ai.deck.length === 0) ai.deck = shuffle(CARD_DB.map(c => c.id));
+function place(i, x, y) {
+  const k = G.h.hand[i], c = CARDS[k];
+  if (G.pe < c.c) return toast(t('noElix'), true);
+  G.pe -= c.c;
+  spawn('p', k, x, y);
+  mirror(k, x, y);
+  cyc(G.h, i);
+  G.sel = -1; G.gh = null;
+  renderHand();
+}
+
+// ---------- Einheiten ----------
+function spawn(team, key, x, y) {
+  const c = CARDS[key];
+  for (let i = 0; i < c.n; i++) {
+    G.u.push({
+      team, key, x: x + (i - (c.n - 1) / 2) * 20, y,
+      hp: c.hp * G.m, maxhp: c.hp * G.m, dmg: c.d * G.m, speed: c.sp * SPD, range: c.r, as: c.as,
+      rad: c.rad, col: c.col, ic: c.ic, rg: c.rg, fly: c.fly, tOnly: c.tOnly, cd: .5, fl: 0
+    });
+  }
+  G.fx.push({ x, y, s: '✨', c: '#fff', l: .6 });
+}
+
+function target(u) {
+  let best = null, bd = Infinity;
+  if (!u.tOnly) {
+    const ag = Math.max(150, u.range + 30);
+    for (const o of G.u) {
+      if (o.team === u.team || o.hp <= 0) continue;
+      const d = dst(u, o) - o.rad - u.rad;
+      if (d < ag && d < bd) { bd = d; best = o; }
     }
+    if (best) return best;
   }
-}
-
-// ---------- Combat / movement ----------
-function damageUnit(u, amount) {
-  u.hp -= amount;
-  state.effects.push({ type: 'hit', x: u.x, y: u.y, t: 0.15 });
-}
-
-function damageTower(t, amount) {
-  t.hp -= amount;
-  state.effects.push({ type: 'hit', x: t.x, y: t.y, t: 0.15 });
-  if (t.hp <= 0) {
-    t.hp = 0;
-    t.alive = false;
-    if (t.kind === 'princess') {
-      const towers = t.side === 'player' ? state.player.towers : state.enemy.towers;
-      const king = towers.find(tt => tt.kind === 'king');
-      if (king) king.active = true;
-    }
-    if (t.kind === 'king') endGame(t.side === 'player' ? 'enemy' : 'player');
-  }
-}
-
-function nearestEnemy(u) {
-  let best = null, bestD = Infinity;
-  for (const o of state.units) {
-    if (o.side === u.side || o.hp <= 0) continue;
-    const d = dist(u.x, u.y, o.x, o.y);
-    if (d < bestD) { bestD = d; best = { obj: o, d, isTower: false }; }
-  }
-  const towers = u.side === 'player' ? state.enemy.towers : state.player.towers;
-  for (const t of towers) {
-    if (!t.alive) continue;
-    if (t.kind === 'king' && !t.active) continue;
-    const d = dist(u.x, u.y, t.x, t.y);
-    if (d < bestD) { bestD = d; best = { obj: t, d, isTower: true }; }
+  bd = Infinity;
+  for (const w of G.tw) {
+    if (w.team === u.team || w.dead) continue;
+    const d = dst(u, w);
+    if (d < bd) { bd = d; best = w; }
   }
   return best;
 }
 
-function updateUnits(dt) {
-  for (const u of state.units) {
-    if (u.hp <= 0) continue;
-    const nearest = nearestEnemy(u);
-    if (nearest && nearest.d <= u.range + nearest.obj.radius) {
-      u.cd -= dt;
-      if (u.cd <= 0) {
-        u.cd = u.atkSpeed;
-        if (nearest.isTower) damageTower(nearest.obj, u.dmg);
-        else damageUnit(nearest.obj, u.dmg);
-      }
-    } else {
-      const dir = (u.side === 'player') ? -1 : 1;
-      let moveX = 0;
-      let targetX = nearest ? nearest.obj.x : (u.x < W / 2 ? LANES_X[0] : LANES_X[1]);
-      if (Math.abs(u.x - targetX) > 4) moveX = Math.sign(targetX - u.x) * u.speed * 0.35;
-      u.x += moveX * dt;
-      u.y += dir * u.speed * dt;
-      u.x = Math.max(20, Math.min(W - 20, u.x));
-      u.y = Math.max(20, Math.min(H - 20, u.y));
-    }
+function hit(o, dmg) {
+  if (o.hp <= 0) return;
+  o.hp -= dmg; o.fl = .12;
+  G.fx.push({ x: o.x + (Math.random() - .5) * 20, y: o.y - rd(o), s: Math.round(dmg), c: o.team === 'p' ? '#ff9a9a' : '#fff', l: .7 });
+  if (o.hp <= 0) {
+    o.hp = 0;
+    if (o.isT) o.dead = 1;
+    G.fx.push({ x: o.x, y: o.y, s: o.isT ? '💥' : '💨', c: '#fff', l: .8 });
   }
-  state.units = state.units.filter(u => u.hp > 0);
+  if (o.isT && o.king) o.act = true;
 }
 
-function towerAttacks(dt) {
-  const allTowers = [...state.player.towers, ...state.enemy.towers];
-  for (const t of allTowers) {
-    if (!t.alive) continue;
-    if (t.kind === 'king' && !t.active) continue;
-    t.cd -= dt;
-    if (t.cd > 0) continue;
-    let best = null, bestD = Infinity;
-    for (const u of state.units) {
-      if (u.side === t.side) continue;
-      const d = dist(t.x, t.y, u.x, u.y);
-      if (d <= t.range && d < bestD) { bestD = d; best = u; }
+function move(u, tg, dt) {
+  const st = u.speed * dt;
+  let nx, ny;
+  if (u.fly) {
+    const dx = tg.x - u.x, dy = tg.y - u.y, len = Math.hypot(dx, dy) || 1;
+    nx = u.x + dx / len * st; ny = u.y + dy / len * st;
+  } else if (inR(u.y)) {
+    nx = u.x; ny = u.y + Math.sign(tg.y - u.y || (u.team === 'p' ? -1 : 1)) * st;
+  } else {
+    let gx = tg.x, gy = tg.y;
+    if ((u.y - RY) * (tg.y - RY) < 0) { gx = nb(u.x); gy = RY; }
+    const dx = gx - u.x, dy = gy - u.y, len = Math.hypot(dx, dy) || 1;
+    nx = u.x + dx / len * st; ny = u.y + dy / len * st;
+    if (inR(ny) && !onB(nx)) { ny = u.y; nx = u.x + Math.sign(nb(u.x) - u.x) * st; }
+  }
+  u.x = Math.max(12, Math.min(W - 12, nx));
+  u.y = Math.max(12, Math.min(H - 12, ny));
+}
+
+function updUnit(u, dt) {
+  u.cd -= dt; u.fl -= dt;
+  const tg = target(u); if (!tg) return;
+  const d = dst(u, tg) - rd(tg) - u.rad;
+  if (d <= u.range) {
+    if (u.cd <= 0) {
+      u.cd = u.as;
+      if (u.rg) G.p.push({ x: u.x, y: u.y, tg, dmg: u.dmg, sp: 520, col: u.col, sz: 5 });
+      else hit(tg, u.dmg);
     }
-    if (best) { t.cd = t.atkSpeed; damageUnit(best, t.dmg); state.effects.push({ type: 'line', x1: t.x, y1: t.y, x2: best.x, y2: best.y, t: 0.12 }); }
+  } else move(u, tg, dt);
+}
+
+function separate() {
+  const us = G.u;
+  for (let i = 0; i < us.length; i++) for (let j = i + 1; j < us.length; j++) {
+    const a = us[i], b = us[j];
+    if (!!a.fly !== !!b.fly) continue;
+    const dx = b.x - a.x, dy = b.y - a.y, d = Math.hypot(dx, dy) || .01, mn = (a.rad + b.rad) * .9;
+    if (d < mn) {
+      const k = (mn - d) / 2, px = dx / d * k, py = dy / d * k;
+      if (a.fly || okPos(a.x - px, a.y - py)) { a.x -= px; a.y -= py; }
+      if (b.fly || okPos(b.x + px, b.y + py)) { b.x += px; b.y += py; }
+    }
   }
 }
 
-function endGame(winnerSide) {
-  state.running = false;
-  overlayText.textContent = winnerSide === 'player' ? '🏆 Victory!' : '💀 Defeat...';
-  overlay.style.display = 'flex';
+function updTower(w, dt) {
+  w.fl -= dt;
+  if (w.dead) return;
+  if (w.king && !w.act && (w.hp < w.maxhp || G.tw.some(o => o.team === w.team && !o.king && o.dead))) w.act = true;
+  w.cd -= dt;
+  if (!w.act || w.cd > 0) return;
+  let best = null, bd = Infinity;
+  for (const u of G.u) {
+    if (u.team === w.team || u.hp <= 0) continue;
+    const d = dst(w, u) - u.rad;
+    if (d <= 230 && d < bd) { bd = d; best = u; }
+  }
+  if (best) { w.cd = 1.1; G.p.push({ x: w.x, y: w.y, tg: best, dmg: w.dmg, sp: 560, col: w.team === 'p' ? '#9cf' : '#f99', sz: 6 }); }
 }
+
+function updProj(dt) {
+  for (const p of G.p) {
+    const o = p.tg;
+    if (o.hp <= 0) { p.done = 1; continue; }
+    const dx = o.x - p.x, dy = o.y - p.y, d = Math.hypot(dx, dy), st = p.sp * dt;
+    if (d <= st + 6) { hit(o, p.dmg); p.done = 1; } else { p.x += dx / d * st; p.y += dy / d * st; }
+  }
+  G.p = G.p.filter(p => !p.done);
+}
+
+// ---------- Bot: gleiches Deck, gleiche Werte, spiegelt deine Karten ----------
+function mirror(k, x, y) {
+  if (Math.random() > .9) return;
+  const d = G.i / (ARENAS.length - 1);               // höhere Arena = schnellere Reaktion
+  G.mq.push({
+    k,
+    x: Math.max(40, Math.min(W - 40, x + (Math.random() - .5) * 50)),
+    y: Math.max(60, Math.min(RY - RH / 2 - 40, H - y + (Math.random() - .5) * 40)),
+    at: G.t + (2.0 - 1.2 * d) + Math.random() * 1.2
+  });
+}
+function botPlay(i, x, y) {
+  const k = cyc(G.bo, i);
+  G.ee -= CARDS[k].c;
+  spawn('e', k, x, y);
+}
+function ai(dt) {
+  G.ee = Math.min(10, G.ee + rate() * dt);
+  const a = G.mq[0];
+  if (a && a.at <= G.t) {
+    let i = G.bo.hand.indexOf(a.k);
+    if (i < 0 && G.t - a.at > 1) i = G.bo.hand.findIndex(h => CARDS[h].c <= G.ee);
+    if (i >= 0 && G.ee >= CARDS[G.bo.hand[i]].c) { botPlay(i, a.x, a.y); G.mq.shift(); }
+    else if (G.t - a.at > 6) G.mq.shift();
+  }
+  // Leerlauf: sonst passiert am Anfang nichts / bei vollem Elixier
+  G.idle -= dt;
+  if (G.idle <= 0 && !G.mq.length && G.ee >= (G.t < 8 ? 5 : 9)) {
+    const opts = G.bo.hand.map((h, i) => i).filter(i => CARDS[G.bo.hand[i]].c <= G.ee);
+    if (opts.length) {
+      const bx = BR[Math.floor(Math.random() * 2)];
+      botPlay(opts[Math.floor(Math.random() * opts.length)], bx + (Math.random() - .5) * 80, 200 + Math.random() * 170);
+    }
+    G.idle = 2;
+  }
+}
+
+// ---------- Loop ----------
+function update(dt) {
+  G.t += dt; G.time -= dt;
+  G.pe = Math.min(10, G.pe + rate() * dt);
+  if (G.t > 2.5) ai(dt);
+  G.u.forEach(u => updUnit(u, dt));
+  separate();
+  G.tw.forEach(w => updTower(w, dt));
+  updProj(dt);
+  G.u = G.u.filter(u => u.hp > 0);
+  G.fx.forEach(f => { f.l -= dt; f.y -= 34 * dt; });
+  G.fx = G.fx.filter(f => f.l > 0);
+
+  $('ef').style.width = G.pe / 10 * 100 + '%';
+  $('en').textContent = Math.floor(G.pe);
+  refreshHand();
+
+  const mine = G.tw.filter(w => w.team === 'e' && w.dead).length;
+  const theirs = G.tw.filter(w => w.team === 'p' && w.dead).length;
+  G.mine = mine; G.theirs = theirs;
+  const sec = Math.max(0, Math.ceil(G.time));
+  const lb = `${G.ar.ic} ${an(G.ar)} · ${Math.floor(sec / 60)}:${String(sec % 60).padStart(2, '0')}${G.time < 30 ? ' ⚡x2' : ''}`;
+  if (lb !== G.lblc) { G.lblc = lb; $('lbl').textContent = lb; }
+
+  if (G.tw.find(w => w.team === 'e' && w.king).dead) return end('win', 3);
+  if (G.tw.find(w => w.team === 'p' && w.king).dead) return end('loss', mine);
+  if (G.time <= 0) {
+    if (mine !== theirs) return end(mine > theirs ? 'win' : 'loss', mine);
+    const f = tm => G.tw.filter(w => w.team === tm).reduce((s, w) => s + w.hp / w.maxhp, 0);
+    const a = f('p'), b = f('e');
+    return end(a > b + .05 ? 'win' : b > a + .05 ? 'loss' : 'draw', mine);
+  }
+}
+function loop(now) {
+  if (!G) return;
+  const dt = Math.min(.05, (now - last) / 1000); last = now;
+  if (!G.over && !G.paused) update(dt);
+  draw();
+  if (G && !G.over) raf = requestAnimationFrame(loop);
+}
+
+function end(res, crowns) {
+  if (G.over) return;
+  G.over = 1; G.sel = -1; drag = null;
+  let coins, xp, key, col;
+  if (res === 'win') { coins = G.ar.rw + crowns * 10; xp = 40 + crowns * 10; S.wins++; S.trophies += 25; key = 'win'; col = '#ffdd44'; }
+  else if (res === 'loss') { coins = 10; xp = 15; S.losses++; S.trophies = Math.max(0, S.trophies - 15); key = 'loss'; col = '#ff6666'; }
+  else { coins = 15; xp = 20; key = 'draw'; col = '#ccc'; }
+  S.coins += coins; S.xp += xp; S.battle = 0;
+  let ups = 0;
+  while (S.xp >= xpFor(S.level)) { S.xp -= xpFor(S.level); S.level++; ups++; }
+  save();
+  $('rt').textContent = t(key); $('rt').style.color = col;
+  $('crn').innerHTML = [0, 1, 2].map(i => `<span style="opacity:${i < crowns ? 1 : .25}">👑</span>`).join('');
+  $('rw').innerHTML = `+${coins} 🪙 · +${xp} XP` + (ups ? '<br>' + t('lvlUp').replace('{n}', S.level) : '');
+  $('over').classList.add('on');
+  draw();
+}
+
+// ---------- Antippen des Feldes (Karte vorher antippen) ----------
+const pos = e => { const r = cv.getBoundingClientRect(); return { x: (e.clientX - r.left) * W / r.width, y: (e.clientY - r.top) * H / r.height }; };
+function canPlace(x, y) {
+  if (x < 24 || x > W - 24 || y < RY + RH / 2 + 20 || y > H - 30) return false;
+  return !G.tw.some(w => !w.dead && Math.hypot(w.x - x, w.y - y) < w.r + 26);
+}
+cv.addEventListener('pointermove', e => { if (G && !G.over && !drag && G.sel >= 0) G.gh = pos(e); });
+cv.addEventListener('pointerdown', e => {
+  if (!G || G.over) return;
+  e.preventDefault();
+  const p = pos(e); G.gh = p;
+  if (G.sel < 0) return;
+  if (!canPlace(p.x, p.y)) return toast(t('onlyHalf'), true);
+  place(G.sel, p.x, p.y);
+});
 
 // ---------- Rendering ----------
+function rr(x, y, w, h, r) { cx.beginPath(); cx.roundRect ? cx.roundRect(x, y, w, h, r) : cx.rect(x, y, w, h); }
+function bar(x, y, w, hp, mx, col) {
+  cx.fillStyle = '#000b'; cx.fillRect(x - w / 2 - 2, y - 2, w + 4, 10);
+  cx.fillStyle = col; cx.fillRect(x - w / 2, y, w * Math.max(0, hp / mx), 6);
+}
+function field() {
+  const th = G.ar.th, rv = G.ar.rv || ['#2a7fd6', '#1c5fa8'];
+  for (let y = 0; y < H; y += 60) for (let x = 0; x < W; x += 60) {
+    cx.fillStyle = ((x + y) / 60) % 2 ? th[1] : th[0]; cx.fillRect(x, y, 60, 60);
+  }
+  // Wege
+  cx.fillStyle = '#e0c88c80';
+  for (const b of BR) {
+    cx.fillRect(b - 26, 200, 52, RY - RH / 2 - 200);
+    cx.fillRect(b - 26, RY + RH / 2, 52, 880 - RY - RH / 2);
+  }
+  cx.fillRect(180, 174, 360, 52); cx.fillRect(180, 854, 360, 52);
+  cx.fillRect(334, 100, 52, 100); cx.fillRect(334, 880, 52, 100);
+  // Fluss
+  const ry = RY - RH / 2, g = cx.createLinearGradient(0, ry, 0, ry + RH);
+  g.addColorStop(0, rv[0]); g.addColorStop(1, rv[1]);
+  cx.fillStyle = g; cx.fillRect(0, ry, W, RH);
+  cx.strokeStyle = '#fff5'; cx.lineWidth = 3;
+  for (let i = 0; i < 3; i++) {
+    cx.beginPath();
+    for (let x = 0; x <= W; x += 10) {
+      const y = ry + 16 + i * 22 + Math.sin((x + G.t * 60 + i * 40) / 22) * 3;
+      x ? cx.lineTo(x, y) : cx.moveTo(x, y);
+    }
+    cx.stroke();
+  }
+  for (const b of BR) {
+    cx.fillStyle = '#9a6a38'; cx.fillRect(b - BW / 2, ry - 6, BW, RH + 12);
+    cx.strokeStyle = '#3a2410'; cx.lineWidth = 3; cx.strokeRect(b - BW / 2, ry - 6, BW, RH + 12);
+    cx.strokeStyle = '#0003'; cx.lineWidth = 2;
+    for (let k = ry; k < ry + RH; k += 14) { cx.beginPath(); cx.moveTo(b - BW / 2, k); cx.lineTo(b + BW / 2, k); cx.stroke(); }
+  }
+  cx.font = '58px serif'; cx.textAlign = 'center'; cx.textBaseline = 'middle'; cx.fillStyle = '#fff';
+  TREES.forEach(([x, y]) => cx.fillText('🌳', x, y));
+  if (G.sel >= 0) { cx.fillStyle = '#50a0ff26'; cx.fillRect(0, RY + RH / 2, W, H - RY - RH / 2); }
+}
+function crownBox(y, n, col) {
+  rr(W - 50, y, 44, 56, 8); cx.fillStyle = col; cx.fill(); cx.strokeStyle = '#000'; cx.lineWidth = 3; cx.stroke();
+  cx.fillStyle = '#fff'; cx.font = '20px serif'; cx.fillText('👑', W - 28, y + 17);
+  cx.font = 'bold 22px sans-serif'; cx.lineWidth = 4; cx.strokeStyle = '#000';
+  cx.strokeText(n, W - 28, y + 40); cx.fillText(n, W - 28, y + 40);
+}
+function drawT(w) {
+  cx.textAlign = 'center'; cx.textBaseline = 'middle';
+  const r = w.r;
+  if (w.dead) { cx.font = r + 'px serif'; cx.fillStyle = '#fff'; cx.fillText('🪨', w.x, w.y); return; }
+  const col = w.team === 'p' ? BLUE : RED;
+  rr(w.x - r, w.y - r, r * 2, r * 2, 10);
+  cx.fillStyle = w.fl > 0 ? '#fff' : '#a9adbb'; cx.fill();
+  cx.strokeStyle = col; cx.lineWidth = 6; cx.stroke();
+  cx.fillStyle = col; cx.fillRect(w.x - r + 7, w.y - r + 7, r * 2 - 14, 10);
+  cx.font = r * 1.0 + 'px serif'; cx.fillStyle = '#fff';
+  cx.fillText(w.king ? '👑' : '🏰', w.x, w.y + 6);
+  bar(w.x, w.y - r - 14, 70, w.hp, w.maxhp, w.team === 'p' ? '#44aaff' : '#ff5566');
+  if (w.king && !w.act) { cx.font = '18px serif'; cx.fillText('💤', w.x + r, w.y - r); }
+}
+function drawU(u) {
+  const sh = u.fly ? 18 : 0;
+  cx.fillStyle = '#0005'; cx.beginPath(); cx.ellipse(u.x, u.y + u.rad * .7 + sh, u.rad, u.rad * .45, 0, 0, 6.3); cx.fill();
+  const y = u.y - sh * .5;
+  cx.fillStyle = u.fl > 0 ? '#fff' : u.col; cx.strokeStyle = u.team === 'p' ? BLUE : RED; cx.lineWidth = 3;
+  cx.beginPath(); cx.arc(u.x, y, u.rad, 0, 6.3); cx.fill(); cx.stroke();
+  cx.font = u.rad * 1.4 + 'px serif'; cx.textAlign = 'center'; cx.textBaseline = 'middle'; cx.fillStyle = '#fff';
+  cx.fillText(u.ic, u.x, y + 1);
+  if (u.hp < u.maxhp) bar(u.x, y - u.rad - 10, Math.max(26, u.rad * 2), u.hp, u.maxhp, u.team === 'p' ? '#44aaff' : '#ff5566');
+}
 function draw() {
-  ctx.clearRect(0, 0, W, H);
-
-  // field background stripes
-  ctx.fillStyle = '#3a6b2e';
-  ctx.fillRect(0, 0, W, H);
-  ctx.fillStyle = 'rgba(255,255,255,0.05)';
-  for (let y = 0; y < H; y += 40) ctx.fillRect(0, y, W, 20);
-
-  // river / mid line
-  ctx.strokeStyle = 'rgba(255,255,255,0.4)';
-  ctx.setLineDash([8, 6]);
-  ctx.beginPath();
-  ctx.moveTo(0, MID_Y);
-  ctx.lineTo(W, MID_Y);
-  ctx.stroke();
-  ctx.setLineDash([]);
-
-  // towers
-  [...state.player.towers, ...state.enemy.towers].forEach(drawTower);
-
-  // units
-  state.units.forEach(drawUnit);
-
-  // effects
-  state.effects.forEach(drawEffect);
-}
-
-function drawTower(t) {
-  const w = t.kind === 'king' ? 46 : 34;
-  const h = t.kind === 'king' ? 34 : 26;
-  ctx.save();
-  ctx.translate(t.x, t.y);
-  ctx.fillStyle = t.alive ? (t.side === 'player' ? '#4b7bd6' : '#d64b4b') : '#555';
-  if (!t.alive) ctx.globalAlpha = 0.35;
-  roundRect(ctx, -w/2, -h/2, w, h, 6);
-  ctx.fill();
-  ctx.strokeStyle = 'rgba(0,0,0,0.4)';
-  ctx.lineWidth = 2;
-  ctx.stroke();
-  ctx.restore();
-
-  if (t.alive) {
-    const barW = w;
-    const pct = Math.max(0, t.hp / t.maxHp);
-    ctx.fillStyle = 'rgba(0,0,0,0.5)';
-    ctx.fillRect(t.x - barW/2, t.y - h/2 - 10, barW, 5);
-    ctx.fillStyle = pct > 0.3 ? '#5adf5a' : '#df5a5a';
-    ctx.fillRect(t.x - barW/2, t.y - h/2 - 10, barW * pct, 5);
+  if (!G) return;
+  cx.clearRect(0, 0, W, H);
+  field();
+  G.tw.forEach(drawT);
+  [...G.u].sort((a, b) => a.y - b.y).forEach(drawU);
+  for (const p of G.p) {
+    cx.fillStyle = p.col; cx.strokeStyle = '#fff'; cx.lineWidth = 1.5;
+    cx.beginPath(); cx.arc(p.x, p.y, p.sz, 0, 6.3); cx.fill(); cx.stroke();
   }
-}
-
-function drawUnit(u) {
-  ctx.save();
-  ctx.translate(u.x, u.y);
-  ctx.fillStyle = u.color;
-  ctx.beginPath();
-  ctx.arc(0, 0, u.radius, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.strokeStyle = u.side === 'player' ? '#2255cc' : '#cc2222';
-  ctx.lineWidth = 3;
-  ctx.stroke();
-  ctx.restore();
-
-  const pct = Math.max(0, u.hp / u.maxHp);
-  ctx.fillStyle = 'rgba(0,0,0,0.5)';
-  ctx.fillRect(u.x - u.radius, u.y - u.radius - 8, u.radius * 2, 4);
-  ctx.fillStyle = pct > 0.3 ? '#5adf5a' : '#df5a5a';
-  ctx.fillRect(u.x - u.radius, u.y - u.radius - 8, u.radius * 2 * pct, 4);
-}
-
-function drawEffect(fx) {
-  if (fx.type === 'blast') {
-    ctx.save();
-    ctx.globalAlpha = Math.max(0, fx.t / 0.4) * 0.6;
-    ctx.fillStyle = fx.color;
-    ctx.beginPath();
-    ctx.arc(fx.x, fx.y, fx.r, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.restore();
-  } else if (fx.type === 'hit') {
-    ctx.save();
-    ctx.globalAlpha = Math.max(0, fx.t / 0.15);
-    ctx.strokeStyle = '#fff';
-    ctx.lineWidth = 2;
-    ctx.beginPath();
-    ctx.arc(fx.x, fx.y, 10, 0, Math.PI * 2);
-    ctx.stroke();
-    ctx.restore();
-  } else if (fx.type === 'line') {
-    ctx.save();
-    ctx.globalAlpha = Math.max(0, fx.t / 0.12);
-    ctx.strokeStyle = '#ffe066';
-    ctx.lineWidth = 2;
-    ctx.beginPath();
-    ctx.moveTo(fx.x1, fx.y1);
-    ctx.lineTo(fx.x2, fx.y2);
-    ctx.stroke();
-    ctx.restore();
+  crownBox(RY - 150, G.theirs || 0, '#c4283a');
+  crownBox(RY + 94, G.mine || 0, '#2a6fd0');
+  if (G.sel >= 0 && G.gh && !G.over) {
+    const c = CARDS[G.h.hand[G.sel]], ok = canPlace(G.gh.x, G.gh.y);
+    cx.save(); cx.globalAlpha = .75;
+    cx.strokeStyle = ok ? '#6f9' : '#f66'; cx.fillStyle = ok ? '#6f93' : '#f663'; cx.lineWidth = 3;
+    cx.beginPath(); cx.arc(G.gh.x, G.gh.y, c.rad + 8, 0, 6.3); cx.fill(); cx.stroke();
+    if (c.rg) { cx.setLineDash([8, 8]); cx.beginPath(); cx.arc(G.gh.x, G.gh.y, c.r, 0, 6.3); cx.stroke(); }
+    cx.font = c.rad * 1.6 + 'px serif'; cx.textAlign = 'center'; cx.textBaseline = 'middle'; cx.fillStyle = '#fff';
+    cx.fillText(c.ic, G.gh.x, G.gh.y);
+    cx.restore();
   }
-}
-
-function roundRect(ctx, x, y, w, h, r) {
-  ctx.beginPath();
-  ctx.moveTo(x + r, y);
-  ctx.arcTo(x + w, y, x + w, y + h, r);
-  ctx.arcTo(x + w, y + h, x, y + h, r);
-  ctx.arcTo(x, y + h, x, y, r);
-  ctx.arcTo(x, y, x + w, y, r);
-  ctx.closePath();
-}
-
-// ---------- Main loop ----------
-let lastTime = performance.now();
-function loop(now) {
-  const dt = Math.min(0.05, (now - lastTime) / 1000);
-  lastTime = now;
-
-  if (state.running) {
-    state.time += dt;
-    state.player.elixir = Math.min(10, state.player.elixir + dt / 2.8);
-    aiTick(dt);
-    updateUnits(dt);
-    towerAttacks(dt);
-
-    state.effects.forEach(fx => fx.t -= dt);
-    state.effects = state.effects.filter(fx => fx.t > 0);
-
-    elixirBar.style.width = (state.player.elixir / 10 * 100) + '%';
-    elixirLabel.textContent = state.player.elixir.toFixed(1) + ' / 10';
-    renderHand();
+  cx.textAlign = 'center'; cx.textBaseline = 'middle';
+  for (const f of G.fx) {
+    cx.globalAlpha = Math.min(1, f.l * 1.6);
+    const num = typeof f.s === 'number';
+    cx.font = num ? 'bold 24px sans-serif' : '30px serif';
+    if (num) { cx.lineWidth = 4; cx.strokeStyle = '#000'; cx.strokeText(f.s, f.x, f.y); }
+    cx.fillStyle = f.c; cx.fillText(f.s, f.x, f.y);
   }
-
-  draw();
-  requestAnimationFrame(loop);
+  cx.globalAlpha = 1;
 }
 
-restartBtn.onclick = init;
+// ---------- Start ----------
+$('battle').onclick = start;
+function applyPenalty() {
+  S.losses++; S.trophies = Math.max(0, S.trophies - 15);
+  S.xp = Math.max(0, S.xp - PEN_XP); S.coins = Math.max(0, S.coins - PEN_COINS);
+  S.battle = 0; save();
+}
+$('back').onclick = () => {
+  if (G && !G.over) {
+    G.paused = 1;
+    $('lmT').textContent = t('leaveW').replace('{x}', PEN_XP).replace('{c}', PEN_COINS);
+    $('leaveM').classList.add('on');
+  } else leave();
+};
+$('lmStay').onclick = () => { $('leaveM').classList.remove('on'); if (G) G.paused = 0; };
+$('lmGo').onclick = () => {
+  $('leaveM').classList.remove('on');
+  if (G && !G.over) applyPenalty();
+  leave();
+};
+$('ok').onclick = leave;
+document.addEventListener('dblclick', e => e.preventDefault());
 
-init();
+// =================================================================
+//  KONTEN (lokal im Browser, ohne E-Mail) + Gast
+// =================================================================
+async function hashPw(pw, salt) {
+  const data = new TextEncoder().encode(salt + ':' + pw);
+  if (window.crypto && crypto.subtle) {
+    const b = await crypto.subtle.digest('SHA-256', data);
+    return [...new Uint8Array(b)].map(x => x.toString(16).padStart(2, '0')).join('');
+  }
+  let h = 5381; for (const c of salt + pw) h = ((h << 5) + h + c.charCodeAt(0)) | 0;
+  return 'x' + h;
+}
+function setAuthMode(m) {
+  authMode = m;
+  $('tL').classList.toggle('on', m === 'login');
+  $('tR').classList.toggle('on', m === 'register');
+  $('uP2').classList.toggle('hide', m === 'login');
+  $('aGo').textContent = t(m);
+  $('aErr').textContent = '';
+}
+$('tL').onclick = () => setAuthMode('login');
+$('tR').onclick = () => setAuthMode('register');
+async function submitAuth() {
+  const name = $('uN').value.trim(), pw = $('uP').value, key = name.toLowerCase();
+  const users = lsGet(USERS) || {};
+  const err = k => { $('aErr').textContent = t(k); };
+  if (!/^[A-Za-z0-9_.-]{3,16}$/.test(name)) return err('errName');
+  if (pw.length < 4) return err('errPw');
+  if (authMode === 'register') {
+    if (pw !== $('uP2').value) return err('errMatch');
+    if (users[key] || key === 'guest' || key === 'gast') return err('errExists');
+    const salt = Math.random().toString(36).slice(2) + Date.now().toString(36);
+    users[key] = { name, salt, hash: await hashPw(pw, salt) };
+    lsSet(USERS, users);
+  } else {
+    const u = users[key];
+    if (!u || u.hash !== await hashPw(pw, u.salt)) return err('errBad');
+  }
+  enter({ key, name: users[key].name, guest: false });
+}
+$('aGo').onclick = submitAuth;
+$('uP').addEventListener('keydown', e => { if (e.key === 'Enter' && authMode === 'login') submitAuth(); });
+$('uP2').addEventListener('keydown', e => { if (e.key === 'Enter') submitAuth(); });
+$('aGuest').onclick = () => enter({ key: 'guest', name: 'Guest', guest: true });
+
+function refreshAcc() {
+  $('acc').textContent = !USER ? '' : USER.guest ? '👤 ' + t('guestName') : (BADGES[USER.key] || '🙂') + ' ' + USER.name;
+}
+function enter(u) {
+  USER = u; lsSet(SESSION, u.guest ? 'guest' : u.key);
+  S = loadSave(); sanitize();
+  let pen = false;
+  if (S.battle) { applyPenalty(); pen = true; }   // Kampf wurde abgebrochen (Seite geschlossen)
+  save();
+  $('uP').value = $('uP2').value = '';
+  screen('home'); view('battle'); renderAll(); refreshAcc();
+  if (pen) toast(t('crashPen').replace('{x}', PEN_XP).replace('{c}', PEN_COINS), true);
+}
+function logout() {
+  USER = null; G = null; drag = null;
+  localStorage.removeItem(SESSION);
+  setAuthMode('login'); applyLang();
+  screen('auth');
+}
+
+// Start: gespeicherte Anmeldung wiederherstellen, sonst Login-Bildschirm
+{
+  const sess = lsGet(SESSION), users = lsGet(USERS) || {};
+  applyLang();
+  if (sess === 'guest') enter({ key: 'guest', name: 'Guest', guest: true });
+  else if (sess && users[sess]) enter({ key: sess, name: users[sess].name, guest: false });
+  else screen('auth');
+}
