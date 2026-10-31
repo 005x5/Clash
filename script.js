@@ -539,6 +539,8 @@ function update(dt) {
 
   $('ef').style.width = G.pe / 10 * 100 + '%';
   $('en').textContent = Math.floor(G.pe);
+  const ns = G.pe >= 10 ? 'MAX' : Math.max(1, Math.ceil((1 - G.pe % 1) / rate())) + (LANG === 'de' ? ' Sek' : ' sec');
+  if ($('nsec').textContent !== ns) $('nsec').textContent = ns;
   refreshHand();
 
   const mine = G.tw.filter(w => w.team === 'e' && w.dead).length;
